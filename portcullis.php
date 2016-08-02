@@ -10,7 +10,7 @@ class Portcullis extends Module {
 	/**
 	 * @var string The version of this module
 	 */
-	private static $version = "1.0.1";
+	private static $version = "1.0.2";
 	/**
 	 * @var string The authors of this module
 	 */
@@ -25,8 +25,6 @@ class Portcullis extends Module {
 		
 		// Load the language required by this module
 		Language::loadLang("portcullis", null, dirname(__FILE__) . DS . "language" . DS);
-		// Temporarily load cPanel too while transitioning
-		Language::loadLang("cpanel", null, dirname(__FILE__) . DS . "language" . DS);
 	}
 	
 	/**
