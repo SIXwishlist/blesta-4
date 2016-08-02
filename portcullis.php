@@ -10,7 +10,7 @@ class Portcullis extends Module {
 	/**
 	 * @var string The version of this module
 	 */
-	private static $version = "1.0.5";
+	private static $version = "1.0.6";
 	/**
 	 * @var string The authors of this module
 	 */
