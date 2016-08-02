@@ -11,7 +11,7 @@
 		?>
 		
 		<div class="title_row first">
-			<h3><?php $this->_("Cpanel.manage.module_rows_title");?></h3>
+			<h3><?php $this->_("Portcullis.manage.module_rows_title");?></h3>
 		</div>
 		<?php
 		$num_rows = count($this->Html->ifSet($module->rows));
@@ -62,7 +62,7 @@
 		?>
 		
 		<div class="title_row">
-			<h3><?php $this->_("Cpanel.manage.module_groups_title");?></h3>
+			<h3><?php $this->_("Portcullis.manage.module_groups_title");?></h3>
 		</div>
 		<?php
 		$num_rows = count($this->Html->ifSet($module->groups));
