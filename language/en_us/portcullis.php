@@ -38,7 +38,7 @@ $lang['Cpanel.manage.module_groups_no_results'] = "There are no server groups.";
 $lang['Cpanel.order_options.first'] = "First non-full server";
 
 // Add row
-$lang['Cpanel.add_row.box_title'] = "Add cPanel Server";
+$lang['Portcullis.add_row.box_title'] = "Add cPanel Server";
 $lang['Cpanel.add_row.basic_title'] = "Basic Settings";
 $lang['Cpanel.add_row.name_servers_title'] = "Name Servers";
 $lang['Cpanel.add_row.notes_title'] = "Notes";
