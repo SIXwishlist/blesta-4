@@ -360,7 +360,7 @@ class Portcullis extends Module {
 		// Load the view into this object, so helpers can be automatically added to the view
 		$this->view = new View("manage", "default");
 		$this->view->base_uri = $this->base_uri;
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html", "Widget"));
@@ -380,7 +380,7 @@ class Portcullis extends Module {
 		// Load the view into this object, so helpers can be automatically added to the view
 		$this->view = new View("add_row", "default");
 		$this->view->base_uri = $this->base_uri;
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html", "Widget"));
@@ -406,7 +406,7 @@ class Portcullis extends Module {
 		// Load the view into this object, so helpers can be automatically added to the view
 		$this->view = new View("edit_row", "default");
 		$this->view->base_uri = $this->base_uri;
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html", "Widget"));
@@ -1081,7 +1081,7 @@ class Portcullis extends Module {
 		// Load the view into this object, so helpers can be automatically added to the view
 		$this->view = new View("admin_service_info", "default");
 		$this->view->base_uri = $this->base_uri;
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html"));
@@ -1108,7 +1108,7 @@ class Portcullis extends Module {
 		// Load the view into this object, so helpers can be automatically added to the view
 		$this->view = new View("client_service_info", "default");
 		$this->view->base_uri = $this->base_uri;
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html"));
@@ -1141,7 +1141,7 @@ class Portcullis extends Module {
 		$this->view->set("stats", $stats);
 		$this->view->set("user_type", $package->meta->type);
 		
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		return $this->view->fetch();
 	}
 	
@@ -1165,7 +1165,7 @@ class Portcullis extends Module {
 		$this->view->set("stats", $stats);
 		$this->view->set("user_type", $package->meta->type);
 		
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		return $this->view->fetch();
 	}
 	
@@ -1272,7 +1272,7 @@ class Portcullis extends Module {
         $this->view->set("service_id", $service->id);
         $this->view->set("vars", (isset($vars) ? $vars : new stdClass()));
 
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "cpanel" . DS);
+		$this->view->setDefaultView("components" . DS . "modules" . DS . "portcullis" . DS);
 		return $this->view->fetch();
 	}
 	
