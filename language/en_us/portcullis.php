@@ -15,8 +15,8 @@ $lang['Portcullis.tab_client_actions'] = "Actions";
 // Module management
 $lang['Portcullis.add_module_row'] = "Add Licence Server";
 $lang['Portcullis.add_module_group'] = "Add Licence Server Group";
-$lang['Cpanel.manage.module_rows_title'] = "Servers";
-$lang['Cpanel.manage.module_groups_title'] = "Server Groups";
+$lang['Portcullis.manage.module_rows_title'] = "Licence Servers";
+$lang['Portcullis.manage.module_groups_title'] = "Licence Server Groups";
 $lang['Cpanel.manage.module_rows_heading.name'] = "Server Label";
 $lang['Cpanel.manage.module_rows_heading.hostname'] = "Hostname";
 $lang['Cpanel.manage.module_rows_heading.accounts'] = "Accounts";
