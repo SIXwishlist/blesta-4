@@ -4,7 +4,7 @@
  */
 
 // Basics
-$lang['Portcullis.name'] = "Portcullis Licence Server";
+$lang['Portcullis.name'] = "Portcullis Licensing Server";
 $lang['Portcullis.module_row'] = "Licence Server";
 $lang['Portcullis.module_row_plural'] = "Licence Servers";
 $lang['Portcullis.module_group'] = "Licence Server Group";
