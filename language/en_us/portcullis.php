@@ -4,7 +4,7 @@
  */
 
 // Basics
-$lang['Portcullis.name'] = "Portcullis Licensing Server";
+$lang['Portcullis.name'] = "Portcullis Licence Server";
 $lang['Portcullis.module_row'] = "Licence Server";
 $lang['Portcullis.module_row_plural'] = "Licence Servers";
 $lang['Portcullis.module_group'] = "Licence Server Group";
@@ -29,16 +29,16 @@ $lang['Portcullis.manage.module_rows.edit'] = "Edit";
 $lang['Portcullis.manage.module_groups.edit'] = "Edit";
 $lang['Portcullis.manage.module_rows.delete'] = "Delete";
 $lang['Portcullis.manage.module_groups.delete'] = "Delete";
-$lang['Portcullis.manage.module_rows.confirm_delete'] = "Are you sure you want to delete this server?";
-$lang['Portcullis.manage.module_groups.confirm_delete'] = "Are you sure you want to delete this server group?";
-$lang['Portcullis.manage.module_rows_no_results'] = "There are no servers.";
-$lang['Portcullis.manage.module_groups_no_results'] = "There are no server groups.";
+$lang['Portcullis.manage.module_rows.confirm_delete'] = "Are you sure you want to delete this licence server?";
+$lang['Portcullis.manage.module_groups.confirm_delete'] = "Are you sure you want to delete this licence server group?";
+$lang['Portcullis.manage.module_rows_no_results'] = "There are no licence servers.";
+$lang['Portcullis.manage.module_groups_no_results'] = "There are no licence server groups.";
 
 
 $lang['Portcullis.order_options.first'] = "First non-full server";
 
 // Add row
-$lang['Portcullis.add_row.box_title'] = "Add Portcullis Server";
+$lang['Portcullis.add_row.box_title'] = "Add Portcullis Licence Server";
 $lang['Portcullis.add_row.basic_title'] = "Basic Settings";
 $lang['Portcullis.add_row.name_servers_title'] = "Name Servers";
 $lang['Portcullis.add_row.notes_title'] = "Notes";
@@ -47,9 +47,9 @@ $lang['Portcullis.add_row.name_server_col'] = "Name Server";
 $lang['Portcullis.add_row.name_server_host_col'] = "Hostname";
 $lang['Portcullis.add_row.name_server'] = "Name server %1\$s"; // %1$s is the name server number (e.g. 3)
 $lang['Portcullis.add_row.remove_name_server'] = "Remove";
-$lang['Portcullis.add_row.add_btn'] = "Add Server";
+$lang['Portcullis.add_row.add_btn'] = "Add Licence Server";
 
-$lang['Portcullis.edit_row.box_title'] = "Edit Portcullis Server";
+$lang['Portcullis.edit_row.box_title'] = "Edit Portcullis Licence Server";
 $lang['Portcullis.edit_row.basic_title'] = "Basic Settings";
 $lang['Portcullis.edit_row.name_servers_title'] = "Name Servers";
 $lang['Portcullis.edit_row.notes_title'] = "Notes";
