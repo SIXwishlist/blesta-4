@@ -13,8 +13,8 @@ $lang['Portcullis.tab_client_stats'] = "Statistics";
 $lang['Portcullis.tab_client_actions'] = "Actions";
 
 // Module management
-$lang['Cpanel.add_module_row'] = "Add Server";
-$lang['Cpanel.add_module_group'] = "Add Server Group";
+$lang['Portcullis.add_module_row'] = "Add Licence Server";
+$lang['Portcullis.add_module_group'] = "Add Licence Server Group";
 $lang['Cpanel.manage.module_rows_title'] = "Servers";
 $lang['Cpanel.manage.module_groups_title'] = "Server Groups";
 $lang['Cpanel.manage.module_rows_heading.name'] = "Server Label";
