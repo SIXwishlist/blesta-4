@@ -10,7 +10,7 @@ class Portcullis extends Module {
 	/**
 	 * @var string The version of this module
 	 */
-	private static $version = "1.0.2";
+	private static $version = "1.0.5";
 	/**
 	 * @var string The authors of this module
 	 */
@@ -63,7 +63,7 @@ class Portcullis extends Module {
 	 */
 	public function getAdminTabs($package) {
 		return array(
-			'tabStats' => Language::_("Cpanel.tab_stats", true)
+			'tabStats' => Language::_("Portcullis.tab_stats", true)
 		);
 	}
 	
@@ -76,8 +76,8 @@ class Portcullis extends Module {
 	 */
 	public function getClientTabs($package) {
 		return array(
-            'tabClientActions' => Language::_("Cpanel.tab_client_actions", true),
-			'tabClientStats' => Language::_("Cpanel.tab_client_stats", true)
+            'tabClientActions' => Language::_("Portcullis.tab_client_actions", true),
+			'tabClientStats' => Language::_("Portcullis.tab_client_stats", true)
 		);
 	}
 	
@@ -127,7 +127,7 @@ class Portcullis extends Module {
 	 * @see Module::selectModuleRow()
 	 */
 	public function getGroupOrderOptions() {
-		return array('first'=>Language::_("Cpanel.order_options.first", true));
+		return array('first'=>Language::_("Portcullis.order_options.first", true));
 	}
 	
 	/**
@@ -210,7 +210,7 @@ class Portcullis extends Module {
 		}
 		
 		$packages = array();
-		$acls = array('' => Language::_("Cpanel.package_fields.acl_default", true));
+		$acls = array('' => Language::_("Portcullis.package_fields.acl_default", true));
 		
 		if ($module_row) {
 			$packages = $this->getCpanelPackages($module_row);
@@ -218,16 +218,16 @@ class Portcullis extends Module {
 		}
 		
 		// Set the cPanel package as a selectable option
-		$package = $fields->label(Language::_("Cpanel.package_fields.package", true), "cpanel_package");
+		$package = $fields->label(Language::_("Portcullis.package_fields.package", true), "cpanel_package");
 		$package->attach($fields->fieldSelect("meta[package]", $packages,
 			$this->Html->ifSet($vars->meta['package']), array('id'=>"cpanel_package")));
 		$fields->setField($package);		
 		
 		// Set the type of account (standard or reseller)
 		if ($module_row && $module_row->meta->user_name == "root") {
-			$type = $fields->label(Language::_("Cpanel.package_fields.type", true), "cpanel_type");
-			$type_standard = $fields->label(Language::_("Cpanel.package_fields.type_standard", true), "cpanel_type_standard");
-			$type_reseller = $fields->label(Language::_("Cpanel.package_fields.type_reseller", true), "cpanel_type_reseller");
+			$type = $fields->label(Language::_("Portcullis.package_fields.type", true), "cpanel_type");
+			$type_standard = $fields->label(Language::_("Portcullis.package_fields.type_standard", true), "cpanel_type_standard");
+			$type_reseller = $fields->label(Language::_("Portcullis.package_fields.type_reseller", true), "cpanel_type_reseller");
 			$type->attach($fields->fieldRadio("meta[type]", "standard",
 				$this->Html->ifSet($vars->meta['type'], "standard") == "standard", array('id'=>"cpanel_type_standard"), $type_standard));
 			$type->attach($fields->fieldRadio("meta[type]", "reseller",
@@ -241,7 +241,7 @@ class Portcullis extends Module {
 		}
 
 		// Set the cPanel package as a selectable option
-		$acl = $fields->label(Language::_("Cpanel.package_fields.acl", true), "cpanel_acl");
+		$acl = $fields->label(Language::_("Portcullis.package_fields.acl", true), "cpanel_acl");
 		$acl->attach($fields->fieldSelect("meta[acl]", $acls,
 			$this->Html->ifSet($vars->meta['acl']), array('id'=>"cpanel_acl")));
 		$fields->setField($acl);
@@ -561,38 +561,38 @@ class Portcullis extends Module {
 		$fields = new ModuleFields();
 		
 		// Create domain label
-		$domain = $fields->label(Language::_("Cpanel.service_field.domain", true), "cpanel_domain");
+		$domain = $fields->label(Language::_("Portcullis.service_field.domain", true), "cpanel_domain");
 		// Create domain field and attach to domain label
 		$domain->attach($fields->fieldText("cpanel_domain", $this->Html->ifSet($vars->cpanel_domain), array('id'=>"cpanel_domain")));
 		// Set the label as a field
 		$fields->setField($domain);
 		
 		// Create username label
-		$username = $fields->label(Language::_("Cpanel.service_field.username", true), "cpanel_username");
+		$username = $fields->label(Language::_("Portcullis.service_field.username", true), "cpanel_username");
 		// Create username field and attach to username label
 		$username->attach($fields->fieldText("cpanel_username", $this->Html->ifSet($vars->cpanel_username), array('id'=>"cpanel_username")));
 		// Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Cpanel.service_field.tooltip.username", true));
+		$tooltip = $fields->tooltip(Language::_("Portcullis.service_field.tooltip.username", true));
 		$username->attach($tooltip);
 		// Set the label as a field
 		$fields->setField($username);
 		
 		// Create password label
-		$password = $fields->label(Language::_("Cpanel.service_field.password", true), "cpanel_password");
+		$password = $fields->label(Language::_("Portcullis.service_field.password", true), "cpanel_password");
 		// Create password field and attach to password label
 		$password->attach($fields->fieldPassword("cpanel_password", array('id'=>"cpanel_password", 'value'=>$this->Html->ifSet($vars->cpanel_password))));
 		// Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Cpanel.service_field.tooltip.password", true));
+		$tooltip = $fields->tooltip(Language::_("Portcullis.service_field.tooltip.password", true));
 		$password->attach($tooltip);
 		// Set the label as a field
 		$fields->setField($password);
 		
 		// Confirm password label
-		$confirm_password = $fields->label(Language::_("Cpanel.service_field.confirm_password", true), "cpanel_confirm_password");
+		$confirm_password = $fields->label(Language::_("Portcullis.service_field.confirm_password", true), "cpanel_confirm_password");
 		// Create confirm password field and attach to password label
 		$confirm_password->attach($fields->fieldPassword("cpanel_confirm_password", array('id'=>"cpanel_confirm_password", 'value'=>$this->Html->ifSet($vars->cpanel_password))));
 		// Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Cpanel.service_field.tooltip.password", true));
+		$tooltip = $fields->tooltip(Language::_("Portcullis.service_field.tooltip.password", true));
 		$confirm_password->attach($tooltip);
 		// Set the label as a field
 		$fields->setField($confirm_password);
@@ -613,7 +613,7 @@ class Portcullis extends Module {
 		$fields = new ModuleFields();
 		
 		// Create domain label
-		$domain = $fields->label(Language::_("Cpanel.service_field.domain", true), "cpanel_domain");
+		$domain = $fields->label(Language::_("Portcullis.service_field.domain", true), "cpanel_domain");
 		// Create domain field and attach to domain label
 		$domain->attach($fields->fieldText("cpanel_domain", $this->Html->ifSet($vars->cpanel_domain, $this->Html->ifSet($vars->domain)), array('id'=>"cpanel_domain")));
 		// Set the label as a field
@@ -635,21 +635,21 @@ class Portcullis extends Module {
 		$fields = new ModuleFields();
 		
 		// Create domain label
-		$domain = $fields->label(Language::_("Cpanel.service_field.domain", true), "cpanel_domain");
+		$domain = $fields->label(Language::_("Portcullis.service_field.domain", true), "cpanel_domain");
 		// Create domain field and attach to domain label
 		$domain->attach($fields->fieldText("cpanel_domain", $this->Html->ifSet($vars->cpanel_domain), array('id'=>"cpanel_domain")));
 		// Set the label as a field
 		$fields->setField($domain);
 		
 		// Create username label
-		$username = $fields->label(Language::_("Cpanel.service_field.username", true), "cpanel_username");
+		$username = $fields->label(Language::_("Portcullis.service_field.username", true), "cpanel_username");
 		// Create username field and attach to username label
 		$username->attach($fields->fieldText("cpanel_username", $this->Html->ifSet($vars->cpanel_username), array('id'=>"cpanel_username")));
 		// Set the label as a field
 		$fields->setField($username);
 		
 		// Create password label
-		$password = $fields->label(Language::_("Cpanel.service_field.password", true), "cpanel_password");
+		$password = $fields->label(Language::_("Portcullis.service_field.password", true), "cpanel_password");
 		// Create password field and attach to password label
 		$password->attach($fields->fieldPassword("cpanel_password", array('id'=>"cpanel_password", 'value' => $this->Html->ifSet($vars->cpanel_password))));
 		// Set the label as a field
@@ -671,35 +671,35 @@ class Portcullis extends Module {
 			'cpanel_domain' => array(
 				'format' => array(
 					'rule' => array(array($this, "validateHostName")),
-					'message' => Language::_("Cpanel.!error.cpanel_domain.format", true)
+					'message' => Language::_("Portcullis.!error.cpanel_domain.format", true)
 				),
 				'test' => array(
 					'rule' => array("substr_compare", "test", 0, 4, true),
-					'message' => Language::_("Cpanel.!error.cpanel_domain.test", true)
+					'message' => Language::_("Portcullis.!error.cpanel_domain.test", true)
 				)
 			),
 			'cpanel_username' => array(
 				'format' => array(
 					'if_set' => true,
 					'rule' => array("matches", "/^[a-z]([a-z0-9])*$/i"),
-					'message' => Language::_("Cpanel.!error.cpanel_username.format", true)
+					'message' => Language::_("Portcullis.!error.cpanel_username.format", true)
 				),
 				'test' => array(
 					'if_set' => true,
 					'rule' => array("matches", "/^(?!test)/"),
-					'message' => Language::_("Cpanel.!error.cpanel_username.test", true)
+					'message' => Language::_("Portcullis.!error.cpanel_username.test", true)
 				),
 				'length' => array(
 					'if_set' => true,
 					'rule' => array("betweenLength", 1, 16),
-					'message' => Language::_("Cpanel.!error.cpanel_username.length", true)
+					'message' => Language::_("Portcullis.!error.cpanel_username.length", true)
 				)
 			),
 			'cpanel_password' => array(
 				'valid' => array(
 					'if_set' => true,
 					'rule' => array("isPassword", 8),
-					'message' => Language::_("Cpanel.!error.cpanel_password.valid", true),
+					'message' => Language::_("Portcullis.!error.cpanel_password.valid", true),
 					'last' => true
 				),
 			),
@@ -707,7 +707,7 @@ class Portcullis extends Module {
 				'matches' => array(
 					'if_set' => true,
 					'rule' => array("compares", "==", (isset($vars['cpanel_password']) ? $vars['cpanel_password'] : "")),
-					'message' => Language::_("Cpanel.!error.cpanel_password.matches", true)
+					'message' => Language::_("Portcullis.!error.cpanel_password.matches", true)
 				)
 			)
 		);
@@ -763,7 +763,7 @@ class Portcullis extends Module {
 		$row = $this->getModuleRow();
 		
 		if (!$row) {
-			$this->Input->setErrors(array('module_row' => array('missing' => Language::_("Cpanel.!error.module_row.missing", true))));
+			$this->Input->setErrors(array('module_row' => array('missing' => Language::_("Portcullis.!error.module_row.missing", true))));
 			return;
 		}
 		
@@ -1533,7 +1533,7 @@ class Portcullis extends Module {
 		
 		// Set internal error
 		if (!$result) {
-			$this->Input->setErrors(array('api' => array('internal' => Language::_("Cpanel.!error.api.internal", true))));
+			$this->Input->setErrors(array('api' => array('internal' => Language::_("Portcullis.!error.api.internal", true))));
 			$success = false;
 		}
 		
@@ -1665,20 +1665,20 @@ class Portcullis extends Module {
 				'valid'=>array(
 					'rule'=>"isEmpty",
 					'negate'=>true,
-					'message'=>Language::_("Cpanel.!error.server_name_valid", true)
+					'message'=>Language::_("Portcullis.!error.server_name_valid", true)
 				)
 			),
 			'host_name'=>array(
 				'valid'=>array(
 					'rule'=>array(array($this, "validateHostName")),
-					'message'=>Language::_("Cpanel.!error.host_name_valid", true)
+					'message'=>Language::_("Portcullis.!error.host_name_valid", true)
 				)
 			),
 			'user_name'=>array(
 				'valid'=>array(
 					'rule'=>"isEmpty",
 					'negate'=>true,
-					'message'=>Language::_("Cpanel.!error.user_name_valid", true)
+					'message'=>Language::_("Portcullis.!error.user_name_valid", true)
 				)
 			),
 			'key'=>array(
@@ -1686,27 +1686,27 @@ class Portcullis extends Module {
 					'last'=>true,
 					'rule'=>"isEmpty",
 					'negate'=>true,
-					'message'=>Language::_("Cpanel.!error.remote_key_valid", true)
+					'message'=>Language::_("Portcullis.!error.remote_key_valid", true)
 				),
 				'valid_connection'=>array(
 					'rule'=>array(array($this, "validateConnection"), $vars['host_name'], $vars['user_name'], $vars['use_ssl'], &$vars['account_count']),
-					'message'=>Language::_("Cpanel.!error.remote_key_valid_connection", true)
+					'message'=>Language::_("Portcullis.!error.remote_key_valid_connection", true)
 				)
 			),
 			'account_limit'=>array(
 				'valid'=>array(
 					'rule'=>array("matches", "/^([0-9]+)?$/"),
-					'message'=>Language::_("Cpanel.!error.account_limit_valid", true)
+					'message'=>Language::_("Portcullis.!error.account_limit_valid", true)
 				)
 			),
 			'name_servers'=>array(
 				'count'=>array(
 					'rule'=>array(array($this, "validateNameServerCount")),
-					'message'=>Language::_("Cpanel.!error.name_servers_count", true)
+					'message'=>Language::_("Portcullis.!error.name_servers_count", true)
 				),
 				'valid'=>array(
 					'rule'=>array(array($this, "validateNameServers")),
-					'message'=>Language::_("Cpanel.!error.name_servers_valid", true)
+					'message'=>Language::_("Portcullis.!error.name_servers_valid", true)
 				)
 			)
 		);
@@ -1725,14 +1725,14 @@ class Portcullis extends Module {
 			'meta[type]' => array(
 				'valid' => array(
 					'rule' => array("matches", "/^(standard|reseller)$/"),
-					'message' => Language::_("Cpanel.!error.meta[type].valid", true), // type must be standard or reseller
+					'message' => Language::_("Portcullis.!error.meta[type].valid", true), // type must be standard or reseller
 				)
 			),
 			'meta[package]' => array(
 				'empty' => array(
 					'rule' => "isEmpty",
 					'negate' => true,
-					'message' => Language::_("Cpanel.!error.meta[package].empty", true) // package must be given
+					'message' => Language::_("Portcullis.!error.meta[package].empty", true) // package must be given
 				)
 			)
 		);
