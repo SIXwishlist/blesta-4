@@ -435,34 +435,28 @@ class Portcullis extends Module {
 	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
 	 */
 	public function addModuleRow(array &$vars) {
-		$meta_fields = array("server_name", "host_name", "user_name", "key",
-			"use_ssl", "account_limit", "name_servers", "notes");
-		$encrypted_fields = array("user_name", "key");
+		$meta_fields = array("server_name", "host_name", "key",
+			"use_ssl");
+		$encrypted_fields = array("key");
 		
 		// Set unspecified checkboxes
 		if (empty($vars['use_ssl']))
 			$vars['use_ssl'] = "false";
-		
-		$this->Input->setRules($this->getRowRules($vars));
-		
-		// Validate module row
-		if ($this->Input->validates($vars)) {
 
-			// Build the meta data for this row
-			$meta = array();
-			foreach ($vars as $key => $value) {
-				
-				if (in_array($key, $meta_fields)) {
-					$meta[] = array(
-						'key'=>$key,
-						'value'=>$value,
-						'encrypted'=>in_array($key, $encrypted_fields) ? 1 : 0
-					);
-				}
+		// Build the meta data for this row
+		$meta = array();
+		foreach ($vars as $key => $value) {
+
+			if (in_array($key, $meta_fields)) {
+				$meta[] = array(
+					'key'=>$key,
+					'value'=>$value,
+					'encrypted'=>in_array($key, $encrypted_fields) ? 1 : 0
+				);
 			}
-			
-			return $meta;
 		}
+
+		return $meta;
 	}
 	
 	/**
