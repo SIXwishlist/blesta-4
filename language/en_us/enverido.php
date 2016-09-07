@@ -13,8 +13,8 @@ $lang['Enverido.!error.api.internal'] = "An internal error occurred, or the serv
 
 // Module
 $lang['Enverido.name'] = "Enverido";
-$lang['Enverido.module_row.name'] = "Account";
-$lang['Enverido.module_rows.name'] = "Accounts";
+$lang['Enverido.module_row.name'] = "Enverido Account";
+$lang['Enverido.module_rows.name'] = "Enverido Accounts";
 $lang['Enverido.module_group.name'] = "Account Group";
 
 
@@ -24,8 +24,8 @@ $lang['Enverido.please_select'] = "-- Please Select --";
 
 
 // Manage
-$lang['Enverido.add_module_row'] = "Add Account";
-$lang['Enverido.manage.module_rows_title'] = "Accounts";
+$lang['Enverido.add_module_row'] = "Add Enverido Account";
+$lang['Enverido.manage.module_rows_title'] = "Enverido Accounts";
 $lang['Enverido.manage.module_rows_heading.email'] = "Email";
 $lang['Enverido.manage.module_rows_heading.test_mode'] = "Test Mode";
 $lang['Enverido.manage.module_rows_heading.options'] = "Options";
@@ -77,7 +77,7 @@ $lang['Enverido.row_meta.test_mode'] = "Test Mode";
 // Add row
 $lang['Enverido.add_row.box_title'] = "Add Enverido Account";
 $lang['Enverido.add_row.basic_title'] = "Basic Settings";
-$lang['Enverido.add_row.add_btn'] = "Add Account";
+$lang['Enverido.add_row.add_btn'] = "Add Enverido Account";
 
 
 // Edit row
