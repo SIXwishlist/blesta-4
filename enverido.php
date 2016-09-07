@@ -950,7 +950,7 @@ class Enverido extends Module {
 		return array(
 			'email' => array(
                 'valid' => array(
-                    'rule' => "isEmail",
+                    'rule' => "isEmpty",
                     'message' => Language::_("Enverido.!error.email.valid", true)
                 )
             ),
@@ -959,13 +959,6 @@ class Enverido extends Module {
                     'rule' => "isEmpty",
                     'negate' => true,
                     'message' => Language::_("Enverido.!error.key.empty", true)
-                )
-            ),
-            'test_mode' => array(
-                'valid' => array(
-                    'if_set' => true,
-                    'rule' => array("in_array", array("true", "false")),
-                    'message' => Language::_("Enverido.!error.test_mode.valid", true)
                 )
             )
 		);
