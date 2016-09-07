@@ -10,11 +10,11 @@ class Enverido extends Module {
 	/**
 	 * @var string The version of this module
 	 */
-	private static $version = "1.0.6";
+	private static $version = "1.1.0";
 	/**
 	 * @var string The authors of this module
 	 */
-	private static $authors = array(array('name'=>"Cogative",'url'=>"https://www.cogative.com"));
+	private static $authors = array(array('name'=>"Cogative",'url'=>"http://www.enverido.com"));
 	
 	/**
 	 * Initializes the module
