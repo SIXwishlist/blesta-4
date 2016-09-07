@@ -568,7 +568,7 @@ class Enverido extends Module {
 
         $productsWithIds = array();
         foreach($api->getProducts() as $p) {
-            $productsWithIds[] = array($p->id => $p->name);
+            $productsWithIds[$p->id] = $p->name;
         }
 		
         // Set the Order Types as selectable options
