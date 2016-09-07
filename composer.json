@@ -1,6 +1,6 @@
 {
-    "name": "blesta/enverido",
-    "description": "Enverido licensing server",
+    "name": "blesta/buycpanel",
+    "description": "BuycPanel",
     "license": "proprietary",
     "type": "blesta-module",
     "require": {

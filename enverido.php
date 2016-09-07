@@ -1,273 +1,347 @@
 <?php
 /**
- * Enverido Licence Server Module
+ * Enverido Blesta Module
  *
- * @copyright Copyright (C) 2016, Cogative LTD.
- * @link https://www.cogative.com/
+ * @package blesta
+ * @subpackage blesta.components.modules.enverido
+ * @copyright Copyright (c) 2016 Cogative LTD.
+ * @link http://www.enverido.com/ Enverido
  */
 class Enverido extends Module {
-	
-	/**
-	 * @var string The version of this module
-	 */
-	private static $version = "1.1.1";
-	/**
-	 * @var string The authors of this module
-	 */
-	private static $authors = array(array('name'=>"Cogative",'url'=>"http://www.enverido.com"));
 	
 	/**
 	 * Initializes the module
 	 */
 	public function __construct() {
+        // Load the language required by this module
+		Language::loadLang("enverido", null, dirname(__FILE__) . DS . "language" . DS);
+        
+        // Load config
+        $this->loadConfig(dirname(__FILE__) . DS . "config.json");
+
 		// Load components required by this module
 		Loader::loadComponents($this, array("Input"));
-		
-		// Load the language required by this module
-		Language::loadLang("enverido", null, dirname(__FILE__) . DS . "language" . DS);
 	}
 	
 	/**
-	 * Returns the name of this module
-	 *
-	 * @return string The common name of this module
-	 */
-	public function getName() {
-		return Language::_("Enverido.name", true);
-	}
-	
-	/**
-	 * Returns the version of this gateway
-	 *
-	 * @return string The current version of this gateway
-	 */
-	public function getVersion() {
-		return self::$version;
-	}
-	
-	/**
-	 * Returns the name and url of the authors of this module
-	 *
-	 * @return array The name and url of the authors of this module
-	 */
-	public function getAuthors() {
-		return self::$authors;
-	}
-
-	/**
-	 * Returns all tabs to display to an admin when managing a service whose
-	 * package uses this module
+	 * Attempts to validate service info. This is the top-level error checking method. Sets Input errors on failure.
 	 *
 	 * @param stdClass $package A stdClass object representing the selected package
-	 * @return array An array of tabs in the format of method => title. Example: array('methodName' => "Title", 'methodName2' => "Title2")
+	 * @param array $vars An array of user supplied info to satisfy the request
+	 * @return boolean True if the service validates, false otherwise. Sets Input errors when false.
 	 */
-	public function getAdminTabs($package) {
-		return array(
-			'tabStats' => Language::_("Enverido.tab_stats", true)
+	public function validateService($package, array $vars=null) {
+        // Set rule to validate IP addresses
+        $ip_address_rule = (function_exists("filter_var") ? array("filter_var", FILTER_VALIDATE_IP) : "");
+        if (empty($ip_address_rule)) {
+            $range = "(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])";
+            $ip_address_rule = array(array("matches", "/^(?:" . $range . "\." . $range . "\." . $range . "\." . $range . ")$/"));
+        }
+
+		// Set rules
+		$rules = array(
+            'buycpanel_ipaddress' => array(
+                'format' => array(
+                    'rule' => $ip_address_rule,
+                    'message' => Language::_("BuycPanel.!error.buycpanel_ipaddress.format", true)
+                )
+            ),
+			'buycpanel_domain' => array(
+				'format' => array(
+					'rule' => array(array($this, "validateHostName")),
+					'message' => Language::_("BuycPanel.!error.buycpanel_domain.format", true)
+				)
+			)
 		);
+
+		$this->Input->setRules($rules);
+		return $this->Input->validates($vars);
 	}
 	
 	/**
-	 * Returns all tabs to display to a client when managing a service whose
-	 * package uses this module
+	 * Adds the service to the remote server. Sets Input errors on failure,
+	 * preventing the service from being added.
 	 *
 	 * @param stdClass $package A stdClass object representing the selected package
-	 * @return array An array of tabs in the format of method => title. Example: array('methodName' => "Title", 'methodName2' => "Title2")
+	 * @param array $vars An array of user supplied info to satisfy the request
+	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being added (if the current service is an addon service service and parent service has already been provisioned)
+	 * @param string $status The status of the service being added. These include:
+	 * 	- active
+	 * 	- canceled
+	 * 	- pending
+	 * 	- suspended
+	 * @param array $options A set of options for the service (optional)
+	 * @return array A numerically indexed array of meta fields to be stored for this service containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
 	 */
-	public function getClientTabs($package) {
+	public function addService($package, array $vars=null, $parent_package=null, $parent_service=null, $status="pending", $options = array()) {
+		// Get module row and API
+		$module_row = $this->getModuleRow();
+		$api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
+		
+        // Disallow an ordertype (license) from overriding the package license except when this option is set. See BuycPanel::unsuspendService()
+        if (!isset($options['allow_order_type']) || !$options['allow_order_type'])
+            unset($vars['ordertype'], $vars['license_type']);
+        
+        // Get fields
+        $params = $this->getFieldsFromInput((array)$vars, $package);
+
+        // Set the addon type separately
+        $temp_params = $params;
+        if (isset($params['addon'])) {
+            $temp_params = array_merge($params, $params['addon']);
+            unset($temp_params['addon']);
+        }
+
+		$this->validateService($package, $vars);
+
+        if ($this->Input->errors())
+			return;
+
+        // Only provision the service if 'use_module' is true
+		if ($vars['use_module'] == "true") {
+            try {
+                $command = new BuycpanelAll($api);
+                $response = $command->orderIp($temp_params);
+                $this->processResponse($api, $response);
+            }
+            catch (Exception $e) {
+                // Internal Error
+				$this->Input->setErrors(array('api' => array('internal' => Language::_("BuycPanel.!error.api.internal", true))));
+            }
+            
+            if ($this->Input->errors())
+				return;
+        }
+
+        // Get the first key in the addon array (the license type), or default to the order type (non-addon license)
+        $license = $params['ordertype'];
+        if (isset($params['addon'])) {
+            reset($params['addon']);
+            $license = key($params['addon']);
+        }
+        
+		// Return service fields
 		return array(
-            'tabClientActions' => Language::_("Enverido.tab_client_actions", true),
-			'tabClientStats' => Language::_("Enverido.tab_client_stats", true)
-		);
+			array(
+				'key' => "buycpanel_ipaddress",
+				'value' => $params['serverip'],
+				'encrypted' => 0
+			),
+			array(
+				'key' => "buycpanel_domain",
+				'value' => $params['domain'],
+				'encrypted' => 0
+			),
+            array(
+                'key' => "buycpanel_license",
+                'value' => $license,
+                'encrypted' => 0
+            )
+        );
 	}
 	
 	/**
-	 * Returns a noun used to refer to a module row (e.g. "Server")
+	 * Edits the service on the remote server. Sets Input errors on failure,
+	 * preventing the service from being edited.
 	 *
-	 * @return string The noun used to refer to a module row
+	 * @param stdClass $package A stdClass object representing the current package
+	 * @param stdClass $service A stdClass object representing the current service
+	 * @param array $vars An array of user supplied info to satisfy the request
+	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being edited (if the current service is an addon service)
+	 * @return array A numerically indexed array of meta fields to be stored for this service containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
 	 */
-	public function moduleRowName() {
-		return Language::_("Enverido.module_row", true);
-	}
-	
-	/**
-	 * Returns a noun used to refer to a module row in plural form (e.g. "Servers", "VPSs", "Reseller Accounts", etc.)
-	 *
-	 * @return string The noun used to refer to a module row in plural form
-	 */
-	public function moduleRowNamePlural() {
-		return Language::_("Enverido.module_row_plural", true);
-	}
-	
-	/**
-	 * Returns a noun used to refer to a module group (e.g. "Server Group")
-	 *
-	 * @return string The noun used to refer to a module group
-	 */
-	public function moduleGroupName() {
-		return Language::_("Enverido.module_group", true);
-	}
-	
-	/**
-	 * Returns the key used to identify the primary field from the set of module row meta fields.
-	 *
-	 * @return string The key used to identify the primary field from the set of module row meta fields
-	 */
-	public function moduleRowMetaKey() {
-		return "server_name";
-	}
-	
-	/**
-	 * Returns an array of available service deligation order methods. The module
-	 * will determine how each method is defined. For example, the method "first"
-	 * may be implemented such that it returns the module row with the least number
-	 * of services assigned to it.
-	 *
-	 * @return array An array of order methods in key/value paris where the key is the type to be stored for the group and value is the name for that option
-	 * @see Module::selectModuleRow()
-	 */
-	public function getGroupOrderOptions() {
-		return array('first'=>Language::_("Enverido.order_options.first", true));
-	}
-	
-	/**
-	 * Determines which module row should be attempted when a service is provisioned
-	 * for the given group based upon the order method set for that group.
-	 *
-	 * @return int The module row ID to attempt to add the service with
-	 * @see Module::getGroupOrderOptions()
-	 */
-	public function selectModuleRow($module_group_id) {
-		if (!isset($this->ModuleManager))
-			Loader::loadModels($this, array("ModuleManager"));
+	public function editService($package, $service, array $vars=null, $parent_package=null, $parent_service=null) {
+		// Get module row and API
+		$module_row = $this->getModuleRow();
+		$api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
 		
-		$group = $this->ModuleManager->getGroup($module_group_id);
+        // Validate the service-specific fields
+		$this->validateService($package, $vars);
+        
+        if ($this->Input->errors())
+			return;
+        
+        // Get the service fields
+		$service_fields = $this->serviceFieldsToObject($service->fields);
 		
-		if ($group) {
-			switch ($group->add_order) {
-				default:
-				case "first":
-					
-					foreach ($group->rows as $row) {
-						if ($row->meta->account_limit > (isset($row->meta->account_count) ? $row->meta->account_count : 0))
-							return $row->id;
-					}
-					
-					break;
-			}
-		}
-		return 0;
-	}
-	
-	/**
-	 * Returns all fields used when adding/editing a package, including any
-	 * javascript to execute when the page is rendered with these fields.
-	 *
-	 * @param $vars stdClass A stdClass object representing a set of post fields
-	 * @return ModuleFields A ModuleFields object, containing the fields to render as well as any additional HTML markup to include
-	 */
-	public function getPackageFields($vars=null) {
-		Loader::loadHelpers($this, array("Html"));
-		
-		$fields = new ModuleFields();
-		$fields->setHtml("
-			<script type=\"text/javascript\">
-				$(document).ready(function() {
-					// Set whether to show or hide the ACL option
-					$('#cpanel_acl').closest('li').hide();
-					if ($('input[name=\"meta[type]\"]:checked').val() == 'reseller')
-						$('#cpanel_acl').closest('li').show();
-					$('input[name=\"meta[type]\"]').change(function() {
-						if ($(this).val() == 'reseller')
-							$('#cpanel_acl').closest('li').show();
-						else
-							$('#cpanel_acl').closest('li').hide();
-					});
-				});
-			</script>
-		");
-		
-		// Fetch all packages available for the given server or server group
-		$module_row = null;
-		if (isset($vars->module_group) && $vars->module_group == "") {
-			if (isset($vars->module_row) && $vars->module_row > 0) {
-				$module_row = $this->getModuleRow($vars->module_row);
-			}
-			else {
-				$rows = $this->getModuleRows();
-				if (isset($rows[0]))
-					$module_row = $rows[0];
-				unset($rows);
-			}
-		}
-		else {
-			// Fetch the 1st server from the list of servers in the selected group
-			$rows = $this->getModuleRows($vars->module_group);
-
-			if (isset($rows[0]))
-				$module_row = $rows[0];
-			unset($rows);
-		}
-		
-		$packages = array();
-		$acls = array('' => Language::_("Enverido.package_fields.acl_default", true));
-		
-		if ($module_row) {
-			$packages = $this->getCpanelPackages($module_row);
-			$acls = $acls + $this->getCpanelAcls($module_row);
-		}
-		
-		// Set the cPanel package as a selectable option
-		$package = $fields->label(Language::_("Enverido.package_fields.package", true), "cpanel_package");
-		$package->attach($fields->fieldSelect("meta[package]", $packages,
-			$this->Html->ifSet($vars->meta['package']), array('id'=>"cpanel_package")));
-		$fields->setField($package);		
-		
-		// Set the type of account (standard or reseller)
-		if ($module_row && $module_row->meta->user_name == "root") {
-			$type = $fields->label(Language::_("Enverido.package_fields.type", true), "cpanel_type");
-			$type_standard = $fields->label(Language::_("Enverido.package_fields.type_standard", true), "cpanel_type_standard");
-			$type_reseller = $fields->label(Language::_("Enverido.package_fields.type_reseller", true), "cpanel_type_reseller");
-			$type->attach($fields->fieldRadio("meta[type]", "standard",
-				$this->Html->ifSet($vars->meta['type'], "standard") == "standard", array('id'=>"cpanel_type_standard"), $type_standard));
-			$type->attach($fields->fieldRadio("meta[type]", "reseller",
-				$this->Html->ifSet($vars->meta['type']) == "reseller", array('id'=>"cpanel_type_reseller"), $type_reseller));
-			$fields->setField($type);
-		}
-		else {
-			// Reseller must use the standard account type
-			$type = $fields->fieldHidden("meta[type]", "standard");
-			$fields->setField($type);
+		// Check for fields that changed
+		$delta = array();
+		foreach ($vars as $key => $value) {
+			if (!array_key_exists($key, $service_fields) || $vars[$key] != $service_fields->$key)
+				$delta[$key] = $value;
 		}
 
-		// Set the cPanel package as a selectable option
-		$acl = $fields->label(Language::_("Enverido.package_fields.acl", true), "cpanel_acl");
-		$acl->attach($fields->fieldSelect("meta[acl]", $acls,
-			$this->Html->ifSet($vars->meta['acl']), array('id'=>"cpanel_acl")));
-		$fields->setField($acl);
-		
+        // Only provision the service if 'use_module' is true
+		if ($vars['use_module'] == "true") {
+            // Only change IP address
+            $current_ip = (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : "");
+            $new_ip = (isset($delta['buycpanel_ipaddress']) ? $delta['buycpanel_ipaddress'] : $current_ip);
+
+            $this->changeIp($api, $current_ip, $new_ip);
+            
+            if ($this->Input->errors())
+				return;
+        }
+        
+        // Return all the service fields
+		$fields = array();
+		foreach ($service_fields as $key => $value)
+			$fields[] = array('key' => $key, 'value' => (isset($delta[$key]) ? $delta[$key] : $value), 'encrypted' => 0);
+
 		return $fields;
 	}
 	
 	/**
-	 * Returns an array of key values for fields stored for a module, package,
-	 * and service under this module, used to substitute those keys with their
-	 * actual module, package, or service meta values in related emails.
+	 * Cancels the service on the remote server. Sets Input errors on failure,
+	 * preventing the service from being canceled.
 	 *
-	 * @return array A multi-dimensional array of key/value pairs where each key is one of 'module', 'package', or 'service' and each value is a numerically indexed array of key values that match meta fields under that category.
-	 * @see Modules::addModuleRow()
-	 * @see Modules::editModuleRow()
-	 * @see Modules::addPackage()
-	 * @see Modules::editPackage()
-	 * @see Modules::addService()
-	 * @see Modules::editService()
+	 * @param stdClass $package A stdClass object representing the current package
+	 * @param stdClass $service A stdClass object representing the current service
+	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being canceled (if the current service is an addon service)
+	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
 	 */
-	public function getEmailTags() {
-		return array(
-			'module' => array('host_name', 'name_servers'),
-			'package' => array('type', 'package', 'acl'),
-			'service' => array('cpanel_username', 'cpanel_password', 'cpanel_domain')
-		);
+	public function cancelService($package, $service, $parent_package=null, $parent_service=null) {
+		$response = null;
+
+		if (($module_row = $this->getModuleRow())) {
+            $module_row = $this->getModuleRow();
+            $api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
+
+			// Get the service fields
+			$service_fields = $this->serviceFieldsToObject($service->fields);
+            $params = array(
+                'currentip' => (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : ""),
+                'cancel' => (isset($service_fields->buycpanel_license) ? $service_fields->buycpanel_license : "")
+            );
+            
+            try {
+                $command = new BuycpanelAll($api);
+                $response = $command->cancelIp($params);
+                $this->processResponse($api, $response);
+            }
+            catch (Exception $e) {
+                // Internal Error
+				$this->Input->setErrors(array('api' => array('internal' => Language::_("BuycPanel.!error.api.internal", true))));
+            }
+		}
+		
+		return null;
+	}
+
+	/**
+	 * Suspends the service on the remote server. Sets Input errors on failure,
+	 * preventing the service from being suspended.
+	 *
+	 * @param stdClass $package A stdClass object representing the current package
+	 * @param stdClass $service A stdClass object representing the current service
+	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being suspended (if the current service is an addon service)
+	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
+	 */
+	public function suspendService($package, $service, $parent_package=null, $parent_service=null) {
+		// Suspend the service by cancelling it
+		$this->cancelService($package, $service, $parent_package, $parent_service);
+	}
+	
+	/**
+	 * Unsuspends the service on the remote server. Sets Input errors on failure,
+	 * preventing the service from being unsuspended.
+	 *
+	 * @param stdClass $package A stdClass object representing the current package
+	 * @param stdClass $service A stdClass object representing the current service
+	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being unsuspended (if the current service is an addon service)
+	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
+	 */
+	public function unsuspendService($package, $service, $parent_package=null, $parent_service=null) {
+		// Get the service fields
+		$service_fields = $this->serviceFieldsToObject($service->fields);
+
+        // Re-add the service since suspending the service cancelled it
+        $license = (isset($service_fields->buycpanel_license) ? $service_fields->buycpanel_license : "");
+        $vars = array(
+            'use_module' => "true",
+            'buycpanel_domain' => (isset($service_fields->buycpanel_domain) ? $service_fields->buycpanel_domain : ""),
+            'buycpanel_ipaddress' => (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : ""),
+            'ordertype' => (is_numeric($license) ? $license : "25"), // set license number, or 25 for an addon license
+            'license_type' => $license
+        );
+        
+        // Add the service back with the same values
+        $fields = $this->addService($package, $vars, $parent_package, $parent_service, $status="active", array('allow_order_type' => true));
+        
+        if (!empty($fields))
+            return $fields;
+		return null;
+	}
+	
+	/**
+	 * Allows the module to perform an action when the service is ready to renew.
+	 * Sets Input errors on failure, preventing the service from renewing.
+	 *
+	 * @param stdClass $package A stdClass object representing the current package
+	 * @param stdClass $service A stdClass object representing the current service
+	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being renewed (if the current service is an addon service)
+	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
+	 */
+	public function renewService($package, $service, $parent_package=null, $parent_service=null) {
+		// Nothing to do
+		return null;
+	}
+	
+	/**
+	 * Updates the package for the service on the remote server. Sets Input
+	 * errors on failure, preventing the service's package from being changed.
+	 *
+	 * @param stdClass $package_from A stdClass object representing the current package
+	 * @param stdClass $package_to A stdClass object representing the new package
+	 * @param stdClass $service A stdClass object representing the current service
+	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
+	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being changed (if the current service is an addon service)
+	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
+	 */
+	public function changeServicePackage($package_from, $package_to, $service, $parent_package=null, $parent_service=null) {
+		// Nothing to do
+		return null;
 	}
 	
 	/**
@@ -285,18 +359,12 @@ class Enverido extends Module {
 	 * @see Module::getModuleRow()
 	 */
 	public function addPackage(array $vars=null) {
-		
-		// Set rules to validate input data
+        // Set rules to validate input data
 		$this->Input->setRules($this->getPackageRules($vars));
 		
 		// Build meta data to return
 		$meta = array();
 		if ($this->Input->validates($vars)) {
-			
-			// If not reseller, then no need to store ACL
-			if ($vars['meta']['type'] != "reseller")
-				unset($vars['meta']['acl']);
-			
 			// Return all package meta fields
 			foreach ($vars['meta'] as $key => $value) {
 				$meta[] = array(
@@ -325,35 +393,28 @@ class Enverido extends Module {
 	 * @see Module::getModuleRow()
 	 */
 	public function editPackage($package, array $vars=null) {
-		
-		// Set rules to validate input data
-		$this->Input->setRules($this->getPackageRules($vars));
-		
-		// Build meta data to return
-		$meta = array();
-		if ($this->Input->validates($vars)) {
-			
-			// If not reseller, then no need to store ACL
-			if ($vars['meta']['type'] != "reseller")
-				unset($vars['meta']['acl']);
-			
-			// Return all package meta fields
-			foreach ($vars['meta'] as $key => $value) {
-				$meta[] = array(
-					'key' => $key,
-					'value' => $value,
-					'encrypted' => 0
-				);
-			}
-		}
-		return $meta;
+        // Same as adding a package
+		return $this->addPackage($vars);
+	}
+	
+	/**
+	 * Deletes the package on the remote server. Sets Input errors on failure,
+	 * preventing the package from being deleted.
+	 *
+	 * @param stdClass $package A stdClass object representing the selected package
+	 * @see Module::getModule()
+	 * @see Module::getModuleRow()
+	 */
+	public function deletePackage($package) {
+		// Nothing to do
+		return null;
 	}
 	
 	/**
 	 * Returns the rendered view of the manage module page
 	 *
 	 * @param mixed $module A stdClass object representing the module and its rows
-	 * @param array $vars An array of post data submitted to or on the manager module page (used to repopulate fields after an error)
+	 * @param array $vars An array of post data submitted to or on the manage module page (used to repopulate fields after an error)
 	 * @return string HTML content containing information to display when viewing the manager module page
 	 */
 	public function manageModule($module, array &$vars) {
@@ -364,7 +425,7 @@ class Enverido extends Module {
 		
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html", "Widget"));
-
+		
 		$this->view->set("module", $module);
 		
 		return $this->view->fetch();
@@ -385,16 +446,10 @@ class Enverido extends Module {
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html", "Widget"));
 		
-		// Set unspecified checkboxes
-		if (!empty($vars)) {
-			if (empty($vars['use_ssl']))
-				$vars['use_ssl'] = "false";
-		}
-		
 		$this->view->set("vars", (object)$vars);
-		return $this->view->fetch();
+		return $this->view->fetch();	
 	}
-
+	
 	/**
 	 * Returns the rendered view of the edit module row page
 	 *
@@ -413,11 +468,6 @@ class Enverido extends Module {
 		
 		if (empty($vars))
 			$vars = $module_row->meta;
-		else {
-			// Set unspecified checkboxes
-			if (empty($vars['use_ssl']))
-				$vars['use_ssl'] = "false";
-		}
 		
 		$this->view->set("vars", (object)$vars);
 		return $this->view->fetch();
@@ -425,8 +475,7 @@ class Enverido extends Module {
 	
 	/**
 	 * Adds the module row on the remote server. Sets Input errors on failure,
-	 * preventing the row from being added. Returns a set of data, which may be
-	 * a subset of $vars, that is stored for this module row
+	 * preventing the row from being added.
 	 *
 	 * @param array $vars An array of module info to add
 	 * @return array A numerically indexed array of meta fields for the module row containing:
@@ -435,51 +484,12 @@ class Enverido extends Module {
 	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
 	 */
 	public function addModuleRow(array &$vars) {
-		$meta_fields = array("server_name", "host_name", "key",
-			"use_ssl");
+		$meta_fields = array("email", "key", "test_mode");
 		$encrypted_fields = array("key");
 		
-		// Set unspecified checkboxes
-		if (empty($vars['use_ssl']))
-			$vars['use_ssl'] = "false";
+        if (!isset($vars['test_mode']))
+            $vars['test_mode'] = "false";
 
-		// Build the meta data for this row
-		$meta = array();
-		foreach ($vars as $key => $value) {
-
-			if (in_array($key, $meta_fields)) {
-				$meta[] = array(
-					'key'=>$key,
-					'value'=>$value,
-					'encrypted'=>in_array($key, $encrypted_fields) ? 1 : 0
-				);
-			}
-		}
-
-		return $meta;
-	}
-	
-	/**
-	 * Edits the module row on the remote server. Sets Input errors on failure,
-	 * preventing the row from being updated. Returns a set of data, which may be
-	 * a subset of $vars, that is stored for this module row
-	 *
-	 * @param stdClass $module_row The stdClass representation of the existing module row
-	 * @param array $vars An array of module info to update
-	 * @return array A numerically indexed array of meta fields for the module row containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 */
-	public function editModuleRow($module_row, array &$vars) {
-		$meta_fields = array("server_name", "host_name", "user_name", "key",
-			"use_ssl", "account_limit", "account_count", "name_servers", "notes");
-		$encrypted_fields = array("user_name", "key");
-		
-		// Set unspecified checkboxes
-		if (empty($vars['use_ssl']))
-			$vars['use_ssl'] = "false";
-		
 		$this->Input->setRules($this->getRowRules($vars));
 		
 		// Validate module row
@@ -491,9 +501,9 @@ class Enverido extends Module {
 				
 				if (in_array($key, $meta_fields)) {
 					$meta[] = array(
-						'key'=>$key,
-						'value'=>$value,
-						'encrypted'=>in_array($key, $encrypted_fields) ? 1 : 0
+						'key' => $key,
+						'value' => $value,
+						'encrypted' => in_array($key, $encrypted_fields) ? 1 : 0
 					);
 				}
 			}
@@ -503,43 +513,114 @@ class Enverido extends Module {
 	}
 	
 	/**
+	 * Edits the module row on the remote server. Sets Input errors on failure,
+	 * preventing the row from being updated.
+	 *
+	 * @param stdClass $module_row The stdClass representation of the existing module row
+	 * @param array $vars An array of module info to update
+	 * @return array A numerically indexed array of meta fields for the module row containing:
+	 * 	- key The key for this meta field
+	 * 	- value The value for this key
+	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
+	 */
+	public function editModuleRow($module_row, array &$vars) {
+		// Same as adding
+		return $this->addModuleRow($vars);
+	}
+	
+	/**
 	 * Deletes the module row on the remote server. Sets Input errors on failure,
 	 * preventing the row from being deleted.
 	 *
 	 * @param stdClass $module_row The stdClass representation of the existing module row
 	 */
 	public function deleteModuleRow($module_row) {
-		
-	}
-
-	/**
-	 * Returns the value used to identify a particular service
-	 *
-	 * @param stdClass $service A stdClass object representing the service
-	 * @return string A value used to identify this service amongst other similar services
-	 */
-	public function getServiceName($service) {
-		foreach ($service->fields as $field) {
-			if ($field->key == "cpanel_domain")
-				return $field->value;
-		}
+		// Nothing to do
 		return null;
 	}
 	
 	/**
-	 * Returns the value used to identify a particular package service which has
-	 * not yet been made into a service. This may be used to uniquely identify
-	 * an uncreated services of the same package (i.e. in an order form checkout)
+	 * Returns an array of available service delegation order methods. The module
+	 * will determine how each method is defined. For example, the method "first"
+	 * may be implemented such that it returns the module row with the least number
+	 * of services assigned to it.
 	 *
-	 * @param stdClass $package A stdClass object representing the selected package
-	 * @param array $vars An array of user supplied info to satisfy the request
-	 * @return string The value used to identify this package service
-	 * @see Module::getServiceName()
+	 * @return array An array of order methods in key/value pairs where the key is the type to be stored for the group and value is the name for that option
+	 * @see Module::selectModuleRow()
 	 */
-	public function getPackageServiceName($package, array $vars=null) {
-		if (isset($vars['cpanel_domain']))
-			return $vars['cpanel_domain'];
-		return null;
+	public function getGroupOrderOptions() {
+		return array('first'=>Language::_("BuycPanel.order_options.first", true));
+	}
+	
+	/**
+	 * Determines which module row should be attempted when a service is provisioned
+	 * for the given group based upon the order method set for that group.
+	 *
+	 * @return int The module row ID to attempt to add the service with
+	 * @see Module::getGroupOrderOptions()
+	 */
+	public function selectModuleRow($module_group_id) {
+		if (!isset($this->ModuleManager))
+			Loader::loadModels($this, array("ModuleManager"));
+		
+		$group = $this->ModuleManager->getGroup($module_group_id);
+		
+		if ($group) {
+			switch ($group->add_order) {
+				default:
+				case "first":
+					
+					foreach ($group->rows as $row) {
+						return $row->id;
+					}
+					
+					break;
+			}
+		}
+		return 0;
+	}
+	
+	/**
+	 * Returns all fields used when adding/editing a package, including any
+	 * javascript to execute when the page is rendered with these fields.
+	 *
+	 * @param $vars stdClass A stdClass object representing a set of post fields
+	 * @return ModuleFields A ModuleFields object, containing the fields to render as well as any additional HTML markup to include
+	 */
+	public function getPackageFields($vars=null) {
+		Loader::loadHelpers($this, array("Html"));
+		
+		$fields = new ModuleFields();
+		
+        // Set the Order Types as selectable options
+        $types = array('' => Language::_("BuycPanel.please_select", true)) + $this->getLicenseTypes();
+		$license_type = $fields->label(Language::_("BuycPanel.package_fields.license_type", true), "license_type");
+		$license_type->attach($fields->fieldSelect("meta[license_type]", $types,
+			$this->Html->ifSet($vars->meta['license_type']), array('id'=>"license_type")));
+		$fields->setField($license_type);
+
+		return $fields;
+	}
+	
+	/**
+	 * Returns an array of key values for fields stored for a module, package,
+	 * and service under this module, used to substitute those keys with their
+	 * actual module, package, or service meta values in related emails.
+	 *
+	 * @return array A multi-dimensional array of key/value pairs where each key is one of 'module', 'package', or 'service' and each value is a numerically indexed array of key values that match meta fields under that category.
+	 * @see Modules::addModuleRow()
+	 * @see Modules::editModuleRow()
+	 * @see Modules::addPackage()
+	 * @see Modules::editPackage()
+	 * @see Modules::addService()
+	 * @see Modules::editService()
+	 */
+	public function getEmailTags() {
+		return array(
+			'module' => array(),
+			'package' => array(),
+			'service' => array("buycpanel_ipaddress", "buycpanel_domain", "buycpanel_license")
+		);
 	}
 	
 	/**
@@ -553,43 +634,21 @@ class Enverido extends Module {
 		Loader::loadHelpers($this, array("Html"));
 		
 		$fields = new ModuleFields();
-		
-		// Create domain label
-		$domain = $fields->label(Language::_("Enverido.service_field.domain", true), "cpanel_domain");
-		// Create domain field and attach to domain label
-		$domain->attach($fields->fieldText("cpanel_domain", $this->Html->ifSet($vars->cpanel_domain), array('id'=>"cpanel_domain")));
-		// Set the label as a field
+
+        $domain = $fields->label(Language::_("BuycPanel.service_fields.domain", true), "buycpanel_domain");
+		$domain->attach($fields->fieldText("buycpanel_domain", $this->Html->ifSet($vars->buycpanel_domain, $this->Html->ifSet($vars->domain)), array('id'=>"buycpanel_domain")));
+        // Add tooltip
+		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.domain", true));
+		$domain->attach($tooltip);
 		$fields->setField($domain);
-		
-		// Create username label
-		$username = $fields->label(Language::_("Enverido.service_field.username", true), "cpanel_username");
-		// Create username field and attach to username label
-		$username->attach($fields->fieldText("cpanel_username", $this->Html->ifSet($vars->cpanel_username), array('id'=>"cpanel_username")));
-		// Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.username", true));
-		$username->attach($tooltip);
-		// Set the label as a field
-		$fields->setField($username);
-		
-		// Create password label
-		$password = $fields->label(Language::_("Enverido.service_field.password", true), "cpanel_password");
-		// Create password field and attach to password label
-		$password->attach($fields->fieldPassword("cpanel_password", array('id'=>"cpanel_password", 'value'=>$this->Html->ifSet($vars->cpanel_password))));
-		// Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.password", true));
-		$password->attach($tooltip);
-		// Set the label as a field
-		$fields->setField($password);
-		
-		// Confirm password label
-		$confirm_password = $fields->label(Language::_("Enverido.service_field.confirm_password", true), "cpanel_confirm_password");
-		// Create confirm password field and attach to password label
-		$confirm_password->attach($fields->fieldPassword("cpanel_confirm_password", array('id'=>"cpanel_confirm_password", 'value'=>$this->Html->ifSet($vars->cpanel_password))));
-		// Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.password", true));
-		$confirm_password->attach($tooltip);
-		// Set the label as a field
-		$fields->setField($confirm_password);
+        
+        // Set the IP address as selectable options
+		$ip = $fields->label(Language::_("BuycPanel.service_fields.ipaddress", true), "buycpanel_ipaddress");
+		$ip->attach($fields->fieldText("buycpanel_ipaddress", $this->Html->ifSet($vars->buycpanel_ipaddress), array('id'=>"buycpanel_ipaddress")));
+        // Add tooltip
+		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.ipaddress", true));
+		$ip->attach($tooltip);
+		$fields->setField($ip);
 		
 		return $fields;
 	}
@@ -602,18 +661,8 @@ class Enverido extends Module {
 	 * @return ModuleFields A ModuleFields object, containg the fields to render as well as any additional HTML markup to include
 	 */	
 	public function getClientAddFields($package, $vars=null) {
-		Loader::loadHelpers($this, array("Html"));
-		
-		$fields = new ModuleFields();
-		
-		// Create domain label
-		$domain = $fields->label(Language::_("Enverido.service_field.domain", true), "cpanel_domain");
-		// Create domain field and attach to domain label
-		$domain->attach($fields->fieldText("cpanel_domain", $this->Html->ifSet($vars->cpanel_domain, $this->Html->ifSet($vars->domain)), array('id'=>"cpanel_domain")));
-		// Set the label as a field
-		$fields->setField($domain);
-		
-		return $fields;
+		// Same as admin fields
+        return $this->getAdminAddFields($package, $vars);
 	}
 	
 	/**
@@ -625,440 +674,25 @@ class Enverido extends Module {
 	 */	
 	public function getAdminEditFields($package, $vars=null) {
 		Loader::loadHelpers($this, array("Html"));
-		
+
 		$fields = new ModuleFields();
-		
-		// Create domain label
-		$domain = $fields->label(Language::_("Enverido.service_field.domain", true), "cpanel_domain");
-		// Create domain field and attach to domain label
-		$domain->attach($fields->fieldText("cpanel_domain", $this->Html->ifSet($vars->cpanel_domain), array('id'=>"cpanel_domain")));
-		// Set the label as a field
+
+        $domain = $fields->label(Language::_("BuycPanel.service_fields.domain", true), "buycpanel_domain");
+		$domain->attach($fields->fieldText("buycpanel_domain", $this->Html->ifSet($vars->buycpanel_domain), array('id'=>"buycpanel_domain")));
+        // Add tooltip
+		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.domain_edit", true));
+		$domain->attach($tooltip);
 		$fields->setField($domain);
-		
-		// Create username label
-		$username = $fields->label(Language::_("Enverido.service_field.username", true), "cpanel_username");
-		// Create username field and attach to username label
-		$username->attach($fields->fieldText("cpanel_username", $this->Html->ifSet($vars->cpanel_username), array('id'=>"cpanel_username")));
-		// Set the label as a field
-		$fields->setField($username);
-		
-		// Create password label
-		$password = $fields->label(Language::_("Enverido.service_field.password", true), "cpanel_password");
-		// Create password field and attach to password label
-		$password->attach($fields->fieldPassword("cpanel_password", array('id'=>"cpanel_password", 'value' => $this->Html->ifSet($vars->cpanel_password))));
-		// Set the label as a field
-		$fields->setField($password);
-		
-		return $fields;
-	}
-	
-	/**
-	 * Attempts to validate service info. This is the top-level error checking method. Sets Input errors on failure.
-	 *
-	 * @param stdClass $package A stdClass object representing the selected package
-	 * @param array $vars An array of user supplied info to satisfy the request
-	 * @param boolean $edit True if this is an edit, false otherwise
-	 * @return boolean True if the service validates, false otherwise. Sets Input errors when false.
-	 */
-	public function validateService($package, array $vars=null, $edit=false) {
-		$rules = array(
-			'cpanel_domain' => array(
-				'format' => array(
-					'rule' => array(array($this, "validateHostName")),
-					'message' => Language::_("Enverido.!error.cpanel_domain.format", true)
-				),
-				'test' => array(
-					'rule' => array("substr_compare", "test", 0, 4, true),
-					'message' => Language::_("Enverido.!error.cpanel_domain.test", true)
-				)
-			),
-			'cpanel_username' => array(
-				'format' => array(
-					'if_set' => true,
-					'rule' => array("matches", "/^[a-z]([a-z0-9])*$/i"),
-					'message' => Language::_("Enverido.!error.cpanel_username.format", true)
-				),
-				'test' => array(
-					'if_set' => true,
-					'rule' => array("matches", "/^(?!test)/"),
-					'message' => Language::_("Enverido.!error.cpanel_username.test", true)
-				),
-				'length' => array(
-					'if_set' => true,
-					'rule' => array("betweenLength", 1, 16),
-					'message' => Language::_("Enverido.!error.cpanel_username.length", true)
-				)
-			),
-			'cpanel_password' => array(
-				'valid' => array(
-					'if_set' => true,
-					'rule' => array("isPassword", 8),
-					'message' => Language::_("Enverido.!error.cpanel_password.valid", true),
-					'last' => true
-				),
-			),
-			'cpanel_confirm_password' => array(
-				'matches' => array(
-					'if_set' => true,
-					'rule' => array("compares", "==", (isset($vars['cpanel_password']) ? $vars['cpanel_password'] : "")),
-					'message' => Language::_("Enverido.!error.cpanel_password.matches", true)
-				)
-			)
-		);
-		
-		if (!isset($vars['cpanel_domain']) || strlen($vars['cpanel_domain']) < 4)
-			unset($rules['cpanel_domain']['test']);
-		
-		// Set the values that may be empty
-		$empty_values = array("cpanel_username", "cpanel_password");
-		
-		if ($edit) {
-			// If this is an edit and no password given then don't evaluate password
-			// since it won't be updated
-			if (!array_key_exists('cpanel_password', $vars) || $vars['cpanel_password'] == "")
-				unset($rules['cpanel_password']);
-			
-			// Validate domain if given
-			$rules['cpanel_domain']['format']['if_set'] = true;
-			$rules['cpanel_domain']['test']['if_set'] = true;
-		}
-		
-		// Remove rules on empty fields
-		foreach ($empty_values as $value) {
-			if (empty($vars[$value]))
-				unset($rules[$value]);
-		}
-		
-		$this->Input->setRules($rules);
-		return $this->Input->validates($vars);
-	}
-	
-	/**
-	 * Adds the service to the remote server. Sets Input errors on failure,
-	 * preventing the service from being added.
-	 *
-	 * @param stdClass $package A stdClass object representing the selected package
-	 * @param array $vars An array of user supplied info to satisfy the request
-	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
-	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being added (if the current service is an addon service service and parent service has already been provisioned)
-	 * @param string $status The status of the service being added. These include:
-	 * 	- active
-	 * 	- canceled
-	 * 	- pending
-	 * 	- suspended
-	 * @return array A numerically indexed array of meta fields to be stored for this service containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 * @see Module::getModule()
-	 * @see Module::getModuleRow()
-	 */
-	public function addService($package, array $vars=null, $parent_package=null, $parent_service=null, $status="pending") {
-		$row = $this->getModuleRow();
-		
-		if (!$row) {
-			$this->Input->setErrors(array('module_row' => array('missing' => Language::_("Enverido.!error.module_row.missing", true))));
-			return;
-		}
-		
-		$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-		
-		// Generate username/password
-		if (array_key_exists('cpanel_domain', $vars)) {
-			Loader::loadModels($this, array("Clients"));
-			
-			// Generate a username
-			if (empty($vars['cpanel_username']))
-				$vars['cpanel_username'] = $this->generateUsername($vars['cpanel_domain']);
-			
-			// Generate a password
-			if (empty($vars['cpanel_password'])) {
-				$vars['cpanel_password'] = $this->generatePassword();
-				$vars['cpanel_confirm_password'] = $vars['cpanel_password'];
-			}
-			
-			// Use client's email address
-			if (isset($vars['client_id']) && ($client = $this->Clients->get($vars['client_id'], false)))
-				$vars['cpanel_email'] = $client->email;
-		}
-		
-		$params = $this->getFieldsFromInput((array)$vars, $package);
 
-		$this->validateService($package, $vars);
-		
-		if ($this->Input->errors())
-			return;
-		
-		// Only provision the service if 'use_module' is true
-		if ($vars['use_module'] == "true") {
-			
-			$masked_params = $params;
-			$masked_params['password'] = "***";
-			$this->log($row->meta->host_name . "|createacct", serialize($masked_params), "input", true);
-			unset($masked_params);
-			$result = $this->parseResponse($api->createacct($params));
-			
-			if ($this->Input->errors())
-				return;
-			
-			// If reseller and we have an ACL set, update the reseller's ACL
-			if ($package->meta->type == "reseller" && $package->meta->acl != "")
-				$api->setacls(array('reseller' => $params['username'], 'acllist' => $package->meta->acl));
-			
-			// Update the number of accounts on the server
-			$this->updateAccountCount($row);
-		}
-		
-		// Return service fields
-		return array(
-			array(
-				'key' => "cpanel_domain",
-				'value' => $params['domain'],
-				'encrypted' => 0
-			),
-			array(
-				'key' => "cpanel_username",
-				'value' => $params['username'],
-				'encrypted' => 0
-			),
-			array(
-				'key' => "cpanel_password",
-				'value' => $params['password'],
-				'encrypted' => 1
-			),
-			array(
-				'key' => "cpanel_confirm_password",
-				'value' => $params['password'],
-				'encrypted' => 1
-			)
-		);
-	}
-	
-	/**
-	 * Edits the service on the remote server. Sets Input errors on failure,
-	 * preventing the service from being edited.
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param array $vars An array of user supplied info to satisfy the request
-	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
-	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being edited (if the current service is an addon service)
-	 * @return array A numerically indexed array of meta fields to be stored for this service containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 * @see Module::getModule()
-	 * @see Module::getModuleRow()
-	 */
-	public function editService($package, $service, array $vars=null, $parent_package=null, $parent_service=null) {
-		$row = $this->getModuleRow();
-		$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-		
-		$this->validateService($package, $vars, true);
-		
-		if ($this->Input->errors())
-			return;
-		
-		$service_fields = $this->serviceFieldsToObject($service->fields);
-		
-		// Remove password if not being updated
-		if (isset($vars['cpanel_password']) && $vars['cpanel_password'] == "")
-			unset($vars['cpanel_password']);
-		
-		// Only update the service if 'use_module' is true
-		if ($vars['use_module'] == "true") {
-			
-			// Check for fields that changed
-			$delta = array();
-			foreach ($vars as $key => $value) {
-				if (!array_key_exists($key, $service_fields) || $vars[$key] != $service_fields->$key)
-					$delta[$key] = $value;
-			}
+        // Set the IP address as selectable options
+		$ip = $fields->label(Language::_("BuycPanel.service_fields.ipaddress", true), "buycpanel_ipaddress");
+		$ip->attach($fields->fieldText("buycpanel_ipaddress", $this->Html->ifSet($vars->buycpanel_ipaddress), array('id'=>"buycpanel_ipaddress")));
+        // Add tooltip
+		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.ipaddress", true));
+		$ip->attach($tooltip);
+		$fields->setField($ip);
 
-			// Update domain (if changed)
-			if (isset($delta['cpanel_domain'])) {
-				$params = array('domain' => $delta['cpanel_domain']);
-				
-				$this->log($row->meta->host_name . "|modifyacct", serialize($params), "input", true);
-				$result = $this->parseResponse($api->modifyacct($service_fields->cpanel_username, $params));
-			}
-			
-			// Update password (if changed)
-			if (isset($delta['cpanel_password'])) {
-				
-				$this->log($row->meta->host_name . "|passwd", "***", "input", true);
-				$result = $this->parseResponse($api->passwd($service_fields->cpanel_username, $delta['cpanel_password']));
-			}
-			
-			// Update username (if changed), do last so we can always rely on $service_fields['cpanel_username'] to contain the username
-			if (isset($delta['cpanel_username'])) {
-				$params = array('newuser' => $delta['cpanel_username']);
-				$this->log($row->meta->host_name . "|modifyacct", serialize($params), "input", true);
-				$result = $this->parseResponse($api->modifyacct($service_fields->cpanel_username, $params));
-			}
-		}
-        
-        // Set fields to update locally
-		$fields = array("cpanel_domain", "cpanel_username", "cpanel_password");
-		foreach ($fields as $field) {
-			if (property_exists($service_fields, $field) && isset($vars[$field]))
-				$service_fields->{$field} = $vars[$field];
-		}
-        
-        // Set the confirm password to the password
-        $service_fields->cpanel_confirm_password = $service_fields->cpanel_password;
-        
-        // Return all the service fields
-		$fields = array();
-		$encrypted_fields = array("cpanel_password", "cpanel_confirm_password");
-		foreach ($service_fields as $key => $value)
-			$fields[] = array('key' => $key, 'value' => $value, 'encrypted' => (in_array($key, $encrypted_fields) ? 1 : 0));
-		
 		return $fields;
-	}
-	
-	/**
-	 * Suspends the service on the remote server. Sets Input errors on failure,
-	 * preventing the service from being suspended.
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
-	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being suspended (if the current service is an addon service)
-	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 * @see Module::getModule()
-	 * @see Module::getModuleRow()
-	 */
-	public function suspendService($package, $service, $parent_package=null, $parent_service=null) {
-		// suspendacct / suspendreseller ($package->meta->type == "reseller")
-		
-		$row = $this->getModuleRow();
-		
-		if ($row) {
-			$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-			
-			$service_fields = $this->serviceFieldsToObject($service->fields);
-			
-			if ($package->meta->type == "reseller") {
-				$this->log($row->meta->host_name . "|suspendreseller", serialize($service_fields->cpanel_username), "input", true);
-				$this->parseResponse($api->suspendreseller($service_fields->cpanel_username));
-			}
-			else {
-				$this->log($row->meta->host_name . "|suspendacct", serialize($service_fields->cpanel_username), "input", true);
-				$this->parseResponse($api->suspendacct($service_fields->cpanel_username));
-			}
-		}
-		
-		return null;
-	}
-	
-	/**
-	 * Unsuspends the service on the remote server. Sets Input errors on failure,
-	 * preventing the service from being unsuspended.
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
-	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being unsuspended (if the current service is an addon service)
-	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 * @see Module::getModule()
-	 * @see Module::getModuleRow()
-	 */
-	public function unsuspendService($package, $service, $parent_package=null, $parent_service=null) {
-		// unsuspendacct / unsuspendreseller ($package->meta->type == "reseller")
-		
-		if (($row = $this->getModuleRow())) {
-			$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-			
-			$service_fields = $this->serviceFieldsToObject($service->fields);
-			
-			if ($package->meta->type == "reseller") {
-				$this->log($row->meta->host_name . "|unsuspendreseller", serialize($service_fields->cpanel_username), "input", true);
-				$this->parseResponse($api->unsuspendreseller($service_fields->cpanel_username));
-			}
-			else {
-				$this->log($row->meta->host_name . "|unsuspendacct", serialize($service_fields->cpanel_username), "input", true);
-				$this->parseResponse($api->unsuspendacct($service_fields->cpanel_username));
-			}
-		}
-		return null;
-	}
-	
-	/**
-	 * Cancels the service on the remote server. Sets Input errors on failure,
-	 * preventing the service from being canceled.
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
-	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being canceled (if the current service is an addon service)
-	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 * @see Module::getModule()
-	 * @see Module::getModuleRow()
-	 */
-	public function cancelService($package, $service, $parent_package=null, $parent_service=null) {
-		
-		if (($row = $this->getModuleRow())) {
-			$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-			
-			$service_fields = $this->serviceFieldsToObject($service->fields);
-			
-			if ($package->meta->type == "reseller") {
-				$this->log($row->meta->host_name . "|terminatereseller", serialize($service_fields->cpanel_username), "input", true);
-				$this->parseResponse($api->terminatereseller($service_fields->cpanel_username));
-			}
-			else {
-				$this->log($row->meta->host_name . "|removeacct", serialize($service_fields->cpanel_username), "input", true);
-				$this->parseResponse($api->removeacct($service_fields->cpanel_username));
-			}
-			
-			// Update the number of accounts on the server
-			$this->updateAccountCount($row);
-		}
-		return null;
-	}
-	
-	/**
-	 * Updates the package for the service on the remote server. Sets Input
-	 * errors on failure, preventing the service's package from being changed.
-	 *
-	 * @param stdClass $package_from A stdClass object representing the current package
-	 * @param stdClass $package_to A stdClass object representing the new package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param stdClass $parent_package A stdClass object representing the parent service's selected package (if the current service is an addon service)
-	 * @param stdClass $parent_service A stdClass object representing the parent service of the service being changed (if the current service is an addon service)
-	 * @return mixed null to maintain the existing meta fields or a numerically indexed array of meta fields to be stored for this service containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 * @see Module::getModule()
-	 * @see Module::getModuleRow()
-	 */
-	public function changeServicePackage($package_from, $package_to, $service, $parent_package=null, $parent_service=null) {
-		
-		if (($row = $this->getModuleRow())) {
-			$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-			
-			// Only request a package change if it has changed
-			if ($package_from->meta->package != $package_to->meta->package) {
-				
-				$service_fields = $this->serviceFieldsToObject($service->fields);
-				
-				$this->log($row->meta->host_name . "|changepackage", serialize(array($service_fields->cpanel_username, $package_to->meta->package)), "input", true);
-				
-				$this->parseResponse($api->changepackage($service_fields->cpanel_username, $package_to->meta->package));
-			}
-		}
-		return null;
 	}
 	
 	/**
@@ -1079,11 +713,12 @@ class Enverido extends Module {
 		
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html"));
-
+		
 		$this->view->set("module_row", $row);
 		$this->view->set("package", $package);
 		$this->view->set("service", $service);
 		$this->view->set("service_fields", $this->serviceFieldsToObject($service->fields));
+        $this->view->set("licenses", $this->getLicenseTypes());
 		
 		return $this->view->fetch();
 	}
@@ -1111,126 +746,26 @@ class Enverido extends Module {
 		$this->view->set("package", $package);
 		$this->view->set("service", $service);
 		$this->view->set("service_fields", $this->serviceFieldsToObject($service->fields));
+        $this->view->set("licenses", $this->getLicenseTypes());
 		
 		return $this->view->fetch();
-	}
-	
-	/**
-	 * Statistics tab (bandwidth/disk usage)
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param array $get Any GET parameters
-	 * @param array $post Any POST parameters
-	 * @param array $files Any FILES parameters
-	 * @return string The string representing the contents of this tab
-	 */
-	public function tabStats($package, $service, array $get=null, array $post=null, array $files=null) {
-		$this->view = new View("tab_stats", "default");
-		// Load the helpers required for this view
-		Loader::loadHelpers($this, array("Form", "Html"));
-		
-		$stats = $this->getStats($package, $service);
-
-		$this->view->set("stats", $stats);
-		$this->view->set("user_type", $package->meta->type);
-		
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "enverido" . DS);
-		return $this->view->fetch();
-	}
-	
-	/**
-	 * Client Statistics tab (bandwidth/disk usage)
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @param array $get Any GET parameters
-	 * @param array $post Any POST parameters
-	 * @param array $files Any FILES parameters
-	 * @return string The string representing the contents of this tab
-	 */
-	public function tabClientStats($package, $service, array $get=null, array $post=null, array $files=null) {
-		$this->view = new View("tab_client_stats", "default");
-		// Load the helpers required for this view
-		Loader::loadHelpers($this, array("Form", "Html"));
-		
-		$stats = $this->getStats($package, $service);
-
-		$this->view->set("stats", $stats);
-		$this->view->set("user_type", $package->meta->type);
-		
-		$this->view->setDefaultView("components" . DS . "modules" . DS . "enverido" . DS);
-		return $this->view->fetch();
-	}
-	
-	/**
-	 * Fetches all account stats
-	 *
-	 * @param stdClass $package A stdClass object representing the current package
-	 * @param stdClass $service A stdClass object representing the current service
-	 * @return stdClass A stdClass object representing all of the stats for the account
-	 */
-	private function getStats($package, $service) {
-		$row = $this->getModuleRow();
-		$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-		
-		$stats = new stdClass();
-		$service_fields = $this->serviceFieldsToObject($service->fields);
-		
-		// Fetch account info
-		$this->log($row->meta->host_name . "|accountsummary", serialize($service_fields->cpanel_username), "input", true);
-		$stats->account_info = $this->parseResponse($api->accountsummary($service_fields->cpanel_username));
-	
-		$stats->disk_usage = array(
-			'used' => null,
-			'limit' => null
-		);
-		$stats->bandwidth_usage = array(
-			'used' => null,
-			'limit' => null
-		);
-		
-		// Get bandwidth/disk for reseller user
-		if ($package->meta->type == "reseller") {
-			$this->log($row->meta->host_name . "|resellerstats", serialize($service_fields->cpanel_username), "input", true);
-			
-			$reseller_info = $this->parseResponse($api->resellerstats($service_fields->cpanel_username));
-			
-			if (isset($reseller_info->result)) {
-				$stats->disk_usage['used'] = $reseller_info->result->diskused;
-				$stats->disk_usage['limit'] = $reseller_info->result->diskquota;
-				$stats->disk_usage['alloc'] = $reseller_info->result->totaldiskalloc;
-				
-				$stats->bandwidth_usage['used'] = $reseller_info->result->totalbwused;
-				$stats->bandwidth_usage['limit'] = $reseller_info->result->bandwidthlimit;
-				$stats->bandwidth_usage['alloc'] = $reseller_info->result->totalbwalloc;
-			}
-		}
-		// Get bandwidth/disk for standard user
-		else {
-			$params = array(
-				'search' => $service_fields->cpanel_username,
-				'searchtype' => "user"
-			);
-			$this->log($row->meta->host_name . "|showbw", serialize($params), "input", true);
-			$bw = $this->parseResponse($api->showbw($params));
-			
-			if (isset($bw->bandwidth[0]->acct[0])) {
-				$stats->bandwidth_usage['used'] = $bw->bandwidth[0]->acct[0]->totalbytes/(1024*1024);
-				$stats->bandwidth_usage['limit'] = $bw->bandwidth[0]->acct[0]->limit/(1024*1024);
-			}
-			
-			if (isset($stats->account_info->acct[0])) {
-				$stats->disk_usage['used'] = preg_replace("/[^0-9]/", "", $stats->account_info->acct[0]->diskused);
-				$stats->disk_usage['limit'] = preg_replace("/[^0-9]/", "", $stats->account_info->acct[0]->disklimit);
-			}
-		}
-		
-		return $stats;
 	}
 
     /**
-	 * Client Actions (reset password)
+	 * Returns all tabs to display to a client when managing a service whose
+	 * package uses this module
+	 *
+	 * @param stdClass $package A stdClass object representing the selected package
+	 * @return array An array of tabs in the format of method => title. Example: array('methodName' => "Title", 'methodName2' => "Title2")
+	 */
+	public function getClientTabs($package) {
+		return array(
+            'tabClientIp' => array('name' => Language::_("BuycPanel.tab_ip", true), 'icon' => "fa fa-edit")
+		);
+	}
+
+    /**
+	 * Tab to allow clients to update their IP address for the license
 	 *
 	 * @param stdClass $package A stdClass object representing the current package
 	 * @param stdClass $service A stdClass object representing the current service
@@ -1239,38 +774,120 @@ class Enverido extends Module {
 	 * @param array $files Any FILES parameters
 	 * @return string The string representing the contents of this tab
 	 */
-	public function tabClientActions($package, $service, array $get=null, array $post=null, array $files=null) {
-		$this->view = new View("tab_client_actions", "default");
-        $this->view->base_uri = $this->base_uri;
+	public function tabClientIp($package, $service, array $get=null, array $post=null, array $files=null) {
+        $this->view = new View("tab_client_ip", "default");
+		$this->view->base_uri = $this->base_uri;
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html"));
 
-		$service_fields = $this->serviceFieldsToObject($service->fields);
-
-        // Perform the password reset
+        // Fetch the service fields
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+        
         if (!empty($post)) {
-            Loader::loadModels($this, array("Services"));
-            $data = array(
-                'cpanel_password' => $this->Html->ifSet($post['cpanel_password']),
-                'cpanel_confirm_password' => $this->Html->ifSet($post['cpanel_confirm_password'])
+            // Get module row and API
+            $module_row = $this->getModuleRow();
+            $api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
+
+            $vars = array(
+                'buycpanel_ipaddress' => (isset($post['buycpanel_ipaddress']) ? $post['buycpanel_ipaddress'] : ""),
+                'buycpanel_domain' => (isset($service_fields->buycpanel_domain) ? $service_fields->buycpanel_domain : "")
             );
-            $this->Services->edit($service->id, $data);
+
+            // Update the service IP address
+            Loader::loadModels($this, array("Services"));
+            $this->Services->edit($service->id, $vars);
 
             if ($this->Services->errors())
                 $this->Input->setErrors($this->Services->errors());
 
-            $vars = (object)$post;
+            $vars = $post;
         }
 
-        $this->view->set("service_fields", $service_fields);
-        $this->view->set("service_id", $service->id);
-        $this->view->set("vars", (isset($vars) ? $vars : new stdClass()));
+        // Set default vars
+		if (empty($vars))
+			$vars = array('buycpanel_ipaddress' => (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : ""));
 
+		$this->view->set("vars", (object)$vars);
+		$this->view->set("service_fields", $service_fields);
+		$this->view->set("service_id", $service->id);
+
+		$this->view->set("view", $this->view->view);
 		$this->view->setDefaultView("components" . DS . "modules" . DS . "enverido" . DS);
 		return $this->view->fetch();
-	}
+    }
 	
-	/**
+    /**
+     * Fetches accepted license types
+     *
+     * @return array A list of key/value pairs representing the license type and it's name
+     */
+    public function getLicenseTypes() {
+        $licenses = array(
+            "0", "10", "20", "3", "4", "5", "attracta", "blesta", "clientexec", "cloudlinux", "fantastico",
+            "installatron", "installatronvps", "litespeed", "litespeed_cpu", "litespeedultra",
+            "rvsitebuilder", "rvsitebuildervps", "rvskin", "softaculous", "solusvm", "solusvmslave",
+            "solusvminislave", "solusvmunslave", "solusvmnovirtual", "spamscan", "trendyflash",
+            "trendyflashdedicated", "trendyflashvps", "whmsonic", "whmxtra"
+        );
+
+        $license_types = array();
+        foreach ($licenses as $license)
+            $license_types[$license] = Language::_("BuycPanel.license_types." . $license, true);
+
+        return $license_types;
+    }
+
+    /**
+     * Changes the IP address to a new IP address
+     *
+     * @param BuycpanelApi An stdClass object representing the API
+     * @param string $current_ip The current service IP address
+     * @param string $new_ip The IP address to set for the service
+     */
+    private function changeIp($api, $current_ip, $new_ip) {
+        // Only change IP address
+        $params = array(
+            'currentip' => $current_ip,
+            'newip' => $new_ip
+        );
+
+        try {
+            // Change the IP address
+            $command = new BuycpanelAll($api);
+            $response = $command->changeIp($params);
+            $this->processResponse($api, $response);
+        }
+        catch (Exception $e) {
+            // Internal Error
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("BuycPanel.!error.api.internal", true))));
+        }
+    }
+
+    /**
+	 * Returns an array of service fields to set for the service using the given input
+	 *
+	 * @param array $vars An array of key/value input pairs
+	 * @param stdClass $package A stdClass object representing the package for the service
+	 * @return array An array of key/value pairs representing service fields
+	 */
+	private function getFieldsFromInput(array $vars, $package) {
+		$fields = array(
+            'serverip' => isset($vars['buycpanel_ipaddress']) ? $vars['buycpanel_ipaddress']: null,
+			'domain' => isset($vars['buycpanel_domain']) ? $vars['buycpanel_domain'] : null,
+            // Set the order type to 25 to signify it is an addon license
+            'ordertype' => (isset($vars['ordertype']) ? $vars['ordertype'] : (isset($package->meta->license_type) && is_numeric($package->meta->license_type) ? $package->meta->license_type : "25"))
+		);
+
+        // If the order type is an addon, the license type should be set
+        if ($fields['ordertype'] == "25") {
+            $key = (isset($vars['license_type']) ? $vars['license_type'] : (isset($package->meta->license_type) ? $package->meta->license_type : ""));
+            $fields['addon'] = array($key => "1");
+        }
+
+		return $fields;
+	}
+
+    /**
 	 * Validates that the given hostname is valid
 	 *
 	 * @param string $host_name The host name to validate
@@ -1279,374 +896,53 @@ class Enverido extends Module {
 	public function validateHostName($host_name) {
 		if (strlen($host_name) > 255)
 			return false;
-		
+
 		return $this->Input->matches($host_name, "/^([a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])(\.([a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9]))+$/");
 	}
-	
-	/**
-	 * Validates that at least 2 name servers are set in the given array of name servers
+
+    /**
+	 * Process API response, setting any errors, and logging the request
 	 *
-	 * @param array $name_servers An array of name servers
-	 * @return boolean True if the array count is >= 2, false otherwise
+	 * @param BuycpanelApi $api The BuycPanel API object
+	 * @param BuycpanelResponse $response The BuycPanel API response object
 	 */
-	public function validateNameServerCount($name_servers) {
-		if (is_array($name_servers) && count($name_servers) >= 2)
-			return true;
-		return false;
-	}
-	
-	/**
-	 * Validates that the nameservers given are formatted correctly
-	 *
-	 * @param array $name_servers An array of name servers
-	 * @return boolean True if every name server is formatted correctly, false otherwise
-	 */
-	public function validateNameServers($name_servers) {
-		if (is_array($name_servers)) {
-			foreach ($name_servers as $name_server) {
-				if (!$this->validateHostName($name_server))
-					return false;
-			}
+	private function processResponse(BuycpanelApi $api, BuycpanelResponse $response) {
+		$this->logRequest($api, $response);
+
+		// Set errors, if any
+		if ($response->status() != "1") {
+			$errors = $response->errors() ? $response->errors() : array();
+			$this->Input->setErrors(array('errors' => $errors));
 		}
-		return true;
-	}
-	
-	/**
-	 * Retrieves the accounts on the server
-	 *
-	 * @param stdClass $api The cPanel API
-	 * @return mixed The number of cPanel accounts on the server, or false on error
-	 */
-	private function getAccountCount($api) {
-		// Ready JSON
-		$this->loadJson();
-		$accounts = false;
-		
-		try {
-			$output = $this->Json->decode($api->listaccts());
-			
-			if (isset($output->acct))
-				$accounts = count($output->acct);
-		}
-		catch (Exception $e) {
-			// Nothing to do
-		}
-		return $accounts;
-	}
-	
-	/**
-	 * Updates the module row meta number of accounts
-	 *
-	 * @param stdClass $module_row A stdClass object representing a single server
-	 */
-	private function updateAccountCount($module_row) {
-		$api = $this->getApi($module_row->meta->host_name, $module_row->meta->user_name, $module_row->meta->key, $module_row->meta->use_ssl);
-		
-		// Get the number of accounts on the server
-		if (($count = $this->getAccountCount($api)) !== false) {
-			// Update the module row account list
-			Loader::loadModels($this, array("ModuleManager"));
-			$vars = $this->ModuleManager->getRowMeta($module_row->id);
-			
-			if ($vars) {
-				$vars->account_count = $count;
-				$vars = (array)$vars;
-				
-				$this->ModuleManager->editRow($module_row->id, $vars);
-			}
-		}
-	}
-	
-	/**
-	 * Validates whether or not the connection details are valid by attempting to fetch
-	 * the number of accounts that currently reside on the server
-	 *
-	 * @return boolean True if the connection is valid, false otherwise
-	 */
-	public function validateConnection($key, $host_name, $user_name, $use_ssl, &$account_count) {
-		// Ready JSON
-		$this->loadJson();
-		
-		try {
-			$api = $this->getApi($host_name, $user_name, $key, $use_ssl);
-			
-			$count = $this->getAccountCount($api);
-			if ($count !== false) {
-				$account_count = $count;
-				return true;
-			}
-		}
-		catch (Exception $e) {
-			// Trap any errors encountered, could not validate connection
-		}
-		return false;
-	}
-	
-	/**
-	 * Generates a username from the given host name
-	 *
-	 * @param string $host_name The host name to use to generate the username
-	 * @return string The username generated from the given hostname
-	 */
-	private function generateUsername($host_name) {
-		// Remove everything except letters and numbers from the domain
-		// ensure no number appears in the beginning
-		$username = ltrim(preg_replace('/[^a-z0-9]/i', '', $host_name), '0123456789');
-		
-		$length = strlen($username);
-		$pool = "abcdefghijklmnopqrstuvwxyz0123456789";
-		$pool_size = strlen($pool);
-		
-		if ($length < 5) {
-			for ($i=$length; $i<8; $i++) {
-				$username .= substr($pool, mt_rand(0, $pool_size-1), 1);
-			}
-			$length = strlen($username);
-		}
-		
-		$username = substr($username, 0, min($length, 8));
-		
-		// Check for existing user accounts
-		$account_matching_characters = 4; // [1,4]
-		$accounts = $this->getUserAccounts(substr($username, 0, $account_matching_characters) . "(.*)");
-		
-		// Re-key the listings
-		if (!empty($accounts)) {
-			foreach ($accounts as $key => $account) {
-				$accounts[$account->user] = $account;
-				unset($accounts[$key]);
-			}
-			
-			// Username exists, create another instead
-			if (array_key_exists($username, $accounts)) {
-				for ($i=0; $i<(int)str_repeat(9, $account_matching_characters); $i++) {
-					$new_username = substr($username, 0, -$account_matching_characters) . $i;
-					if (!array_key_exists($new_username, $accounts)) {
-						$username = $new_username;
-						break;
-					}
-				}
-			}
-		}
-		
-		return $username;
-	}
-	
-	/**
-	 * Retrieves matching user accounts
-	 *
-	 * @param string $name The account username (supports regex's)
-	 * @return mixed An array of stdClass objects representing each user, or null if no user exists
-	 */
-	private function getUserAccounts($name) {
-		// Ready JSON
-		$this->loadJson();
-		$user = null;
-		
-		$row = $this->getModuleRow();
-		if ($row)
-			$api = $this->getApi($row->meta->host_name, $row->meta->user_name, $row->meta->key, $row->meta->use_ssl);
-		
-		try {
-			if ($api) {
-				$output = $this->Json->decode($api->listaccts("user", $name));
-				
-				if (isset($output->acct))
-					$user = $output->acct;
-			}
-		}
-		catch (Exception $e) {
-			// Nothing to do
-		}
-		
-		return $user;
-	}
-	
-	/**
-	 * Generates a password
-	 *
-	 * @param int $min_length The minimum character length for the password (5 or larger)
-	 * @param int $max_length The maximum character length for the password (14 or fewer)
-	 * @return string The generated password
-	 */
-	private function generatePassword($min_length=10, $max_length=14) {
-		$pool = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-		$pool_size = strlen($pool);
-		$length = mt_rand(max($min_length, 5), min($max_length, 14));
-		$password = "";
-		
-		for ($i=0; $i<$length; $i++) {
-			$password .= substr($pool, mt_rand(0, $pool_size-1), 1);
-		}
-		
-		return $password;
-	}
-	
-	/**
-	 * Returns an array of service field to set for the service using the given input
-	 *
-	 * @param array $vars An array of key/value input pairs
-	 * @param stdClass $package A stdClass object representing the package for the service
-	 * @return array An array of key/value pairs representing service fields
-	 */
-	private function getFieldsFromInput(array $vars, $package) {
-		$fields = array(
-			'domain' => isset($vars['cpanel_domain']) ? $vars['cpanel_domain'] : null,
-			'username' => isset($vars['cpanel_username']) ? $vars['cpanel_username']: null,
-			'password' => isset($vars['cpanel_password']) ? $vars['cpanel_password'] : null,
-			'plan' => $package->meta->package,
-			'reseller' => ($package->meta->type == "reseller" ? 1 : 0),
-			'contactemail' => isset($vars['cpanel_email']) ? $vars['cpanel_email'] : null
-		);
-		
-		return $fields;
-	}
-	
-	/**
-	 * Loads the JSON component into this object, making it ready to use
-	 */
-	private function loadJson() {
-		if (!isset($this->Json) || !($this->Json instanceof Json))
-			Loader::loadComponents($this, array("Json"));
-	}
-	
-	/**
-	 * Parses the response from the API into a stdClass object
-	 *
-	 * @param string $response The response from the API
-	 * @return stdClass A stdClass object representing the response, void if the response was an error
-	 */
-	private function parseResponse($response) {
-		// Ready JSON
-		$this->loadJson();
-		
-		$row = $this->getModuleRow();
-		
-		$result = $this->Json->decode($response);
-		$success = true;
-		
-		// Set internal error
-		if (!$result) {
-			$this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
-			$success = false;
-		}
-		
-		// Only some API requests return status, so only use it if its available
-		if (isset($result->status) && $result->status == 0) {
-			$this->Input->setErrors(array('api' => array('result' => $result->statusmsg)));
-			$success = false;
-		}
-		elseif (isset($result->result) && is_array($result->result) && isset($result->result[0]->status) && $result->result[0]->status == 0) {
-			$this->Input->setErrors(array('api' => array('result' => $result->result[0]->statusmsg)));
-			$success = false;
-		}
-		elseif (isset($result->passwd) && is_array($result->passwd) && isset($result->passwd[0]->status) && $result->passwd[0]->status == 0) {
-			$this->Input->setErrors(array('api' => array('result' => $result->passwd[0]->statusmsg)));
-			$success = false;
-		}
-		elseif (isset($result->cpanelresult) && !empty($result->cpanelresult->error)) {
-			$this->Input->setErrors(array('api' => array('error' => (isset($result->cpanelresult->data->reason) ? $result->cpanelresult->data->reason : $result->cpanelresult->error))));
-			$success = false;
-		}
-		
-		// Log the response
-		$this->log($row->meta->host_name, $response, "output", $success);
-		
-		// Return if any errors encountered
-		if (!$success)
-			return;
-		
-		return $result;
-	}
-	
-	/**
-	 * Initializes the CpanelApi and returns an instance of that object with the given $host, $user, and $pass set
-	 *
-	 * @param string $host The host to the cPanel server
-	 * @param string $user The user to connect as
-	 * @param string $pass The hash-pased password to authenticate with
-	 * @return CpanelApi The CpanelApi instance
-	 */
-	private function getApi($host, $user, $pass, $use_ssl = true) {
-		Loader::load(dirname(__FILE__) . DS . "apis" . DS . "cpanel_api.php");
-		
-		$api = new CpanelApi($host);
-		$api->set_user($user);
-		$api->set_hash($pass);
-		$api->set_output("json");
-		$api->set_port(($use_ssl ? 2087 : 2086));
-		$api->set_protocol("http" . ($use_ssl ? "s" : ""));
-		
-		return $api;
-	}
-	
-	/**
-	 * Fetches a listing of all packages configured in cPanel for the given server
-	 *
-	 * @param stdClass $module_row A stdClass object representing a single server
-	 * @return array An array of packages in key/value pair
-	 */
-	private function getCpanelPackages($module_row) {
-		if (!isset($this->DataStructure))
-			Loader::loadHelpers($this, array("DataStructure"));
-		if (!isset($this->ArrayHelper))
-			$this->ArrayHelper = $this->DataStructure->create("Array");
-		
-		$this->loadJson();
-		$api = $this->getApi($module_row->meta->host_name, $module_row->meta->user_name, $module_row->meta->key, $module_row->meta->use_ssl);
-		$packages = array();
-        
-		try {
-            $this->log($module_row->meta->host_name . "|listpkgs", null, "input", true);
-            $package_list = $api->listpkgs();
-            $result = $this->Json->decode($package_list);
-            
-            $success = false;
-            if (isset($result->package)) {
-                $success = true;
-                $packages = $this->ArrayHelper->numericToKey($result->package, "name", "name");
-            }
-			
-            $this->log($module_row->meta->host_name, $package_list, "output", $success);
-		}
-		catch (Exception $e) {
-			// API request failed
-		}
-        
-        return $packages;
 	}
 
 	/**
-	 * Fetches a listing of all ACLs configured in cPanel for the given server
+	 * Logs the API request
 	 *
-	 * @param stdClass $module_row A stdClass object representing a single server
-	 * @return array An array of ACLS in key/value pair
+	 * @param BuycpanelApi $api The BuycPanel API object
+	 * @param BuycpanelResponse $response The BuycPanel API response object
 	 */
-	private function getCpanelAcls($module_row) {
-		if (!isset($this->DataStructure))
-			Loader::loadHelpers($this, array("DataStructure"));
-		if (!isset($this->ArrayHelper))
-			$this->ArrayHelper = $this->DataStructure->create("Array");
+	private function logRequest(BuycpanelApi $api, BuycpanelResponse $response) {
+		$last_request = $api->lastRequest();
+		$last_request['args']['key'] = "***";
 		
-		$this->loadJson();
-		$api = $this->getApi($module_row->meta->host_name, $module_row->meta->user_name, $module_row->meta->key, $module_row->meta->use_ssl);
-		
-		try {
-			$keys = (array)$this->Json->decode($api->listacls())->acls;
-
-			$acls = array();
-			foreach ($keys as $key => $value) {
-				$acls[$key] = $key;
-			}
-			return $acls;
-		}
-		catch (Exception $e) {
-			// API request failed
-		}
-		
-		return array();
+		$this->log($last_request['url'], serialize($last_request['args']), "input", true);
+		$this->log($last_request['url'], $response->raw(), "output", $response->status() == "1");
 	}
-	
+
+    /**
+	 * Initializes the BuycPanel Api and returns an instance of that object with the given account information set
+	 *
+	 * @param string $email The account email address
+	 * @param string $key The API Key
+	 * @return BuycpanelApi A BuycpanelApi instance
+	 */
+	private function getApi($email, $key, $test_mode) {
+		Loader::load(dirname(__FILE__) . DS . "apis" . DS . "enverido_api.php");
+
+		return new BuycpanelApi($email, $key, $test_mode);
+	}
+
 	/**
 	 * Builds and returns the rules required to add/edit a module row (e.g. server)
 	 *
@@ -1654,84 +950,50 @@ class Enverido extends Module {
 	 * @return array An array of Input rules suitable for Input::setRules()
 	 */
 	private function getRowRules(&$vars) {
-		$rules = array(
-			'server_name'=>array(
-				'valid'=>array(
-					'rule'=>"isEmpty",
-					'negate'=>true,
-					'message'=>Language::_("Enverido.!error.server_name_valid", true)
-				)
-			),
-			'host_name'=>array(
-				'valid'=>array(
-					'rule'=>array(array($this, "validateHostName")),
-					'message'=>Language::_("Enverido.!error.host_name_valid", true)
-				)
-			),
-			'user_name'=>array(
-				'valid'=>array(
-					'rule'=>"isEmpty",
-					'negate'=>true,
-					'message'=>Language::_("Enverido.!error.user_name_valid", true)
-				)
-			),
-			'key'=>array(
-				'valid'=>array(
-					'last'=>true,
-					'rule'=>"isEmpty",
-					'negate'=>true,
-					'message'=>Language::_("Enverido.!error.remote_key_valid", true)
-				),
-				'valid_connection'=>array(
-					'rule'=>array(array($this, "validateConnection"), $vars['host_name'], $vars['user_name'], $vars['use_ssl'], &$vars['account_count']),
-					'message'=>Language::_("Enverido.!error.remote_key_valid_connection", true)
-				)
-			),
-			'account_limit'=>array(
-				'valid'=>array(
-					'rule'=>array("matches", "/^([0-9]+)?$/"),
-					'message'=>Language::_("Enverido.!error.account_limit_valid", true)
-				)
-			),
-			'name_servers'=>array(
-				'count'=>array(
-					'rule'=>array(array($this, "validateNameServerCount")),
-					'message'=>Language::_("Enverido.!error.name_servers_count", true)
-				),
-				'valid'=>array(
-					'rule'=>array(array($this, "validateNameServers")),
-					'message'=>Language::_("Enverido.!error.name_servers_valid", true)
-				)
-			)
+		return array(
+			'email' => array(
+                'valid' => array(
+                    'rule' => "isEmail",
+                    'message' => Language::_("BuycPanel.!error.email.valid", true)
+                )
+            ),
+            'key' => array(
+                'empty' => array(
+                    'rule' => "isEmpty",
+                    'negate' => true,
+                    'message' => Language::_("BuycPanel.!error.key.empty", true)
+                )
+            ),
+            'test_mode' => array(
+                'valid' => array(
+                    'if_set' => true,
+                    'rule' => array("in_array", array("true", "false")),
+                    'message' => Language::_("BuycPanel.!error.test_mode.valid", true)
+                )
+            )
 		);
-		
-		return $rules;
 	}
-	
-	/**
-	 * Builds and returns rules required to be validated when adding/editing a package
-	 *
-	 * @param array $vars An array of key/value data pairs
-	 * @return array An array of Input rules suitable for Input::setRules()
-	 */
-	private function getPackageRules($vars) {
-		$rules = array(
-			'meta[type]' => array(
+
+    /**
+     * Bulids and returns the rules required for validating packages
+     *
+     * @param array $vars An array of key/value pairs
+     * @return array An array of Input rules suitable for Input::setRules()
+     */
+    private function getPackageRules($vars) {
+        // Convert integer types to string
+        $license_types = array_keys($this->getLicenseTypes());
+        foreach ($license_types as &$type)
+            $type = (string)$type;
+
+        return array(
+			'meta[license_type]' => array(
 				'valid' => array(
-					'rule' => array("matches", "/^(standard|reseller)$/"),
-					'message' => Language::_("Enverido.!error.meta[type].valid", true), // type must be standard or reseller
-				)
-			),
-			'meta[package]' => array(
-				'empty' => array(
-					'rule' => "isEmpty",
-					'negate' => true,
-					'message' => Language::_("Enverido.!error.meta[package].empty", true) // package must be given
+					'rule' => array("in_array", $license_types),
+					'message' => Language::_("BuycPanel.!error.meta[license_type].valid", true)
 				)
 			)
-		);
-		
-		return $rules;
-	}
+        );
+    }
 }
 ?>

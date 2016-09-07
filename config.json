@@ -1,0 +1,23 @@
+{
+    "version": "1.1.2",
+    "name": "Enverido.name",
+    "description": "Easily sell licensed software using Enverido!",
+	"authors": [
+		{
+			"name": "Cogative",
+			"url": "http://www.enverido.com"
+		}
+	],
+    "service": {
+        "name_key": "enverido_product"
+    },
+    "module": {
+        "row": "Enverido.module_row.name",
+        "rows": "Enverido.module_rows.name",
+        "group": "Enverido.module_group.name",
+        "row_key": "email"
+    },
+    "package": {
+        "name_key": "license_type"
+    }
+}
