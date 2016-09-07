@@ -43,13 +43,13 @@ class Enverido extends Module {
             'buycpanel_ipaddress' => array(
                 'format' => array(
                     'rule' => $ip_address_rule,
-                    'message' => Language::_("BuycPanel.!error.buycpanel_ipaddress.format", true)
+                    'message' => Language::_("Enverido.!error.buycpanel_ipaddress.format", true)
                 )
             ),
 			'buycpanel_domain' => array(
 				'format' => array(
 					'rule' => array(array($this, "validateHostName")),
-					'message' => Language::_("BuycPanel.!error.buycpanel_domain.format", true)
+					'message' => Language::_("Enverido.!error.buycpanel_domain.format", true)
 				)
 			)
 		);
@@ -84,7 +84,7 @@ class Enverido extends Module {
 		$module_row = $this->getModuleRow();
 		$api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
 		
-        // Disallow an ordertype (license) from overriding the package license except when this option is set. See BuycPanel::unsuspendService()
+        // Disallow an ordertype (license) from overriding the package license except when this option is set. See Enverido::unsuspendService()
         if (!isset($options['allow_order_type']) || !$options['allow_order_type'])
             unset($vars['ordertype'], $vars['license_type']);
         
@@ -112,7 +112,7 @@ class Enverido extends Module {
             }
             catch (Exception $e) {
                 // Internal Error
-				$this->Input->setErrors(array('api' => array('internal' => Language::_("BuycPanel.!error.api.internal", true))));
+				$this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
             }
             
             if ($this->Input->errors())
@@ -239,7 +239,7 @@ class Enverido extends Module {
             }
             catch (Exception $e) {
                 // Internal Error
-				$this->Input->setErrors(array('api' => array('internal' => Language::_("BuycPanel.!error.api.internal", true))));
+				$this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
             }
 		}
 		
@@ -546,7 +546,7 @@ class Enverido extends Module {
 	 * @see Module::selectModuleRow()
 	 */
 	public function getGroupOrderOptions() {
-		return array('first'=>Language::_("BuycPanel.order_options.first", true));
+		return array('first'=>Language::_("Enverido.order_options.first", true));
 	}
 	
 	/**
@@ -590,7 +590,7 @@ class Enverido extends Module {
 		$fields = new ModuleFields();
 		
         // Set the Order Types as selectable options
-        $types = array('' => Language::_("BuycPanel.please_select", true)) + $this->getLicenseTypes();
+        $types = array('' => Language::_("Enverido.please_select", true)) + $this->getLicenseTypes();
 		$license_type = $fields->label(Language::_("Enverido.package_fields.license_type", true), "license_type");
 		$license_type->attach($fields->fieldSelect("meta[license_type]", $types,
 			$this->Html->ifSet($vars->meta['license_type']), array('id'=>"license_type")));
@@ -632,18 +632,18 @@ class Enverido extends Module {
 		
 		$fields = new ModuleFields();
 
-        $domain = $fields->label(Language::_("BuycPanel.service_fields.domain", true), "buycpanel_domain");
+        $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "buycpanel_domain");
 		$domain->attach($fields->fieldText("buycpanel_domain", $this->Html->ifSet($vars->buycpanel_domain, $this->Html->ifSet($vars->domain)), array('id'=>"buycpanel_domain")));
         // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.domain", true));
+		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
 		$domain->attach($tooltip);
 		$fields->setField($domain);
         
         // Set the IP address as selectable options
-		$ip = $fields->label(Language::_("BuycPanel.service_fields.ipaddress", true), "buycpanel_ipaddress");
+		$ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "buycpanel_ipaddress");
 		$ip->attach($fields->fieldText("buycpanel_ipaddress", $this->Html->ifSet($vars->buycpanel_ipaddress), array('id'=>"buycpanel_ipaddress")));
         // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.ipaddress", true));
+		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
 		$ip->attach($tooltip);
 		$fields->setField($ip);
 		
@@ -674,18 +674,18 @@ class Enverido extends Module {
 
 		$fields = new ModuleFields();
 
-        $domain = $fields->label(Language::_("BuycPanel.service_fields.domain", true), "buycpanel_domain");
+        $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "buycpanel_domain");
 		$domain->attach($fields->fieldText("buycpanel_domain", $this->Html->ifSet($vars->buycpanel_domain), array('id'=>"buycpanel_domain")));
         // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.domain_edit", true));
+		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain_edit", true));
 		$domain->attach($tooltip);
 		$fields->setField($domain);
 
         // Set the IP address as selectable options
-		$ip = $fields->label(Language::_("BuycPanel.service_fields.ipaddress", true), "buycpanel_ipaddress");
+		$ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "buycpanel_ipaddress");
 		$ip->attach($fields->fieldText("buycpanel_ipaddress", $this->Html->ifSet($vars->buycpanel_ipaddress), array('id'=>"buycpanel_ipaddress")));
         // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("BuycPanel.service_field.tooltip.ipaddress", true));
+		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
 		$ip->attach($tooltip);
 		$fields->setField($ip);
 
@@ -757,7 +757,7 @@ class Enverido extends Module {
 	 */
 	public function getClientTabs($package) {
 		return array(
-            'tabClientIp' => array('name' => Language::_("BuycPanel.tab_ip", true), 'icon' => "fa fa-edit")
+            'tabClientIp' => array('name' => Language::_("Enverido.tab_ip", true), 'icon' => "fa fa-edit")
 		);
 	}
 
@@ -829,7 +829,7 @@ class Enverido extends Module {
 
         $license_types = array();
         foreach ($licenses as $license)
-            $license_types[$license] = Language::_("BuycPanel.license_types." . $license, true);
+            $license_types[$license] = Language::_("Enverido.license_types." . $license, true);
 
         return $license_types;
     }
@@ -856,7 +856,7 @@ class Enverido extends Module {
         }
         catch (Exception $e) {
             // Internal Error
-            $this->Input->setErrors(array('api' => array('internal' => Language::_("BuycPanel.!error.api.internal", true))));
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
         }
     }
 
@@ -900,8 +900,8 @@ class Enverido extends Module {
     /**
 	 * Process API response, setting any errors, and logging the request
 	 *
-	 * @param BuycpanelApi $api The BuycPanel API object
-	 * @param BuycpanelResponse $response The BuycPanel API response object
+	 * @param BuycpanelApi $api The Enverido API object
+	 * @param BuycpanelResponse $response The Enverido API response object
 	 */
 	private function processResponse(BuycpanelApi $api, BuycpanelResponse $response) {
 		$this->logRequest($api, $response);
@@ -916,8 +916,8 @@ class Enverido extends Module {
 	/**
 	 * Logs the API request
 	 *
-	 * @param BuycpanelApi $api The BuycPanel API object
-	 * @param BuycpanelResponse $response The BuycPanel API response object
+	 * @param BuycpanelApi $api The Enverido API object
+	 * @param BuycpanelResponse $response The Enverido API response object
 	 */
 	private function logRequest(BuycpanelApi $api, BuycpanelResponse $response) {
 		$last_request = $api->lastRequest();
@@ -928,7 +928,7 @@ class Enverido extends Module {
 	}
 
     /**
-	 * Initializes the BuycPanel Api and returns an instance of that object with the given account information set
+	 * Initializes the Enverido Api and returns an instance of that object with the given account information set
 	 *
 	 * @param string $email The account email address
 	 * @param string $key The API Key
@@ -951,21 +951,21 @@ class Enverido extends Module {
 			'email' => array(
                 'valid' => array(
                     'rule' => "isEmail",
-                    'message' => Language::_("BuycPanel.!error.email.valid", true)
+                    'message' => Language::_("Enverido.!error.email.valid", true)
                 )
             ),
             'key' => array(
                 'empty' => array(
                     'rule' => "isEmpty",
                     'negate' => true,
-                    'message' => Language::_("BuycPanel.!error.key.empty", true)
+                    'message' => Language::_("Enverido.!error.key.empty", true)
                 )
             ),
             'test_mode' => array(
                 'valid' => array(
                     'if_set' => true,
                     'rule' => array("in_array", array("true", "false")),
-                    'message' => Language::_("BuycPanel.!error.test_mode.valid", true)
+                    'message' => Language::_("Enverido.!error.test_mode.valid", true)
                 )
             )
 		);
@@ -987,7 +987,7 @@ class Enverido extends Module {
 			'meta[license_type]' => array(
 				'valid' => array(
 					'rule' => array("in_array", $license_types),
-					'message' => Language::_("BuycPanel.!error.meta[license_type].valid", true)
+					'message' => Language::_("Enverido.!error.meta[license_type].valid", true)
 				)
 			)
         );
