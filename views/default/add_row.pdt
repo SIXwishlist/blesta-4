@@ -26,12 +26,6 @@
 						?>
                         <span class="tooltip"><?php $this->_("AppController.tooltip.text");?><div><?php $this->_("Enverido.row_meta.tooltip.key");?></div></span>
                     </li>
-                    <li>
-						<?php
-						$this->Form->fieldCheckbox("test_mode", "true", ($this->Html->ifSet($vars->test_mode) == "true"), array('id' => "test_mode"));
-						$this->Form->label($this->_("Enverido.row_meta.test_mode", true), "test_mode", array('class' => "inline"));
-						?>
-					</li>
                 </ul>
             </div>
 

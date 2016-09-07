@@ -484,11 +484,8 @@ class Enverido extends Module {
 	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
 	 */
 	public function addModuleRow(array &$vars) {
-		$meta_fields = array("email", "key", "test_mode");
+		$meta_fields = array("email", "key");
 		$encrypted_fields = array("key");
-		
-        if (!isset($vars['test_mode']))
-            $vars['test_mode'] = "false";
 
 		$this->Input->setRules($this->getRowRules($vars));
 		
@@ -594,7 +591,7 @@ class Enverido extends Module {
 		
         // Set the Order Types as selectable options
         $types = array('' => Language::_("BuycPanel.please_select", true)) + $this->getLicenseTypes();
-		$license_type = $fields->label(Language::_("BuycPanel.package_fields.license_type", true), "license_type");
+		$license_type = $fields->label(Language::_("Enverido.package_fields.license_type", true), "license_type");
 		$license_type->attach($fields->fieldSelect("meta[license_type]", $types,
 			$this->Html->ifSet($vars->meta['license_type']), array('id'=>"license_type")));
 		$fields->setField($license_type);

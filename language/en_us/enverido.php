@@ -67,11 +67,10 @@ $lang['Enverido.service_info.license_type'] = "License";
 
 
 // Row meta
-$lang['Enverido.row_meta.email'] = "Email";
+$lang['Enverido.row_meta.email'] = "Account Email Address";
 $lang['Enverido.row_meta.tooltip.email'] = "Enter your Enverido account email address.";
 $lang['Enverido.row_meta.key'] = "API Key";
 $lang['Enverido.row_meta.tooltip.key'] = "Enter your Enverido account API Key.";
-$lang['Enverido.row_meta.test_mode'] = "Test Mode";
 
 
 // Add row
