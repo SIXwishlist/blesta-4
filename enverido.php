@@ -24,7 +24,7 @@ class Enverido extends Module {
 		Loader::loadComponents($this, array("Input"));
 		
 		// Load the language required by this module
-		Language::loadLang("Enverido", null, dirname(__FILE__) . DS . "language" . DS);
+		Language::loadLang("enverido", null, dirname(__FILE__) . DS . "language" . DS);
 	}
 	
 	/**
