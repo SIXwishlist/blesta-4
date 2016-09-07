@@ -26,14 +26,11 @@ $lang['Enverido.please_select'] = "-- Please Select --";
 // Manage
 $lang['Enverido.add_module_row'] = "Add Enverido Account";
 $lang['Enverido.manage.module_rows_title'] = "Enverido Accounts";
-$lang['Enverido.manage.module_rows_heading.email'] = "Email";
-$lang['Enverido.manage.module_rows_heading.test_mode'] = "Test Mode";
+$lang['Enverido.manage.module_rows_heading.email'] = "Account Email Address";
 $lang['Enverido.manage.module_rows_heading.options'] = "Options";
 $lang['Enverido.manage.module_rows.edit'] = "Edit";
 $lang['Enverido.manage.module_rows.delete'] = "Delete";
 $lang['Enverido.manage.module_rows.confirm_delete'] = "Are you sure you want to delete this account?";
-$lang['Enverido.manage.module_rows.test_yes'] = "Yes";
-$lang['Enverido.manage.module_rows.test_no'] = "No";
 
 $lang['Enverido.manage.module_rows_no_results'] = "There are no accounts.";
 

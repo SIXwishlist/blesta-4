@@ -19,7 +19,6 @@
 		<table class="table">
 			<tr class="heading_row">
 				<td><span><?php $this->_("Enverido.manage.module_rows_heading.email");?></span></td>
-				<td><span><?php $this->_("Enverido.manage.module_rows_heading.test_mode");?></span></td>
 				<td class="last"><span><?php $this->_("Enverido.manage.module_rows_heading.options");?></span></td>
 			</tr>
 			<?php
@@ -27,12 +26,6 @@
 			?>
 			<tr<?php echo ($i%2 == 1) ? " class=\"odd_row\"" : "";?>>
 				<td><?php $this->Html->_($module->rows[$i]->meta->email);?></td>
-				<td>
-                    <?php
-                    $test_mode = $this->Html->ifSet($module->rows[$i]->meta->test_mode, "false");
-                    $this->_("Enverido.manage.module_rows.test_" . ($test_mode == "true" ? "yes" : "no"));
-                    ?>
-                </td>
 				<td>
 					<a href="<?php echo $this->Html->safe($this->base_uri . "settings/company/modules/editrow/" . $this->Html->ifSet($module->id) . "/" . $this->Html->ifSet($module->rows[$i]->id) . "/");?>"><?php $this->_("Enverido.manage.module_rows.edit");?></a>
 					<?php
