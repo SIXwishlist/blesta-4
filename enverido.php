@@ -563,7 +563,7 @@ class Enverido extends Module {
 		$fields = new ModuleFields();
 		
         // Set the Order Types as selectable options
-        $types = array('' => Language::_("Enverido.please_select", true)) + $this->getLicenseTypes();
+        $types = array('1' => 'test', '2' => 'test 2');
 		$license_type = $fields->label(Language::_("Enverido.package_fields.license_type", true), "license_type");
 		$license_type->attach($fields->fieldSelect("meta[license_type]", $types,
 			$this->Html->ifSet($vars->meta['license_type']), array('id'=>"license_type")));
