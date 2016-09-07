@@ -1,45 +1,45 @@
 		<?php
 		$this->Widget->clear();
 		$this->Widget->setLinkButtons(array());
-		$this->Widget->create($this->_("Portcullis.add_row.box_title", true));
+		$this->Widget->create($this->_("Enverido.add_row.box_title", true));
 		?>
 		<div class="inner">
 			<?php
 			$this->Form->create();
 			?>
 			<div class="title_row first">
-				<h3><?php $this->_("Portcullis.add_row.basic_title");?></h3>
+				<h3><?php $this->_("Enverido.add_row.basic_title");?></h3>
 			</div>
 			<div class="pad">
 				<ul>
 					<li>
 						<?php
-						$this->Form->label($this->_("Portcullis.row_meta.server_name", true), "server_name");
+						$this->Form->label($this->_("Enverido.row_meta.server_name", true), "server_name");
 						$this->Form->fieldText("server_name", $this->Html->ifSet($vars->server_name));
 						?>
 					</li>
 					<li>
 						<?php
-						$this->Form->label($this->_("Portcullis.row_meta.host_name", true), "host_name");
+						$this->Form->label($this->_("Enverido.row_meta.host_name", true), "host_name");
 						$this->Form->fieldText("host_name", $this->Html->ifSet($vars->host_name));
 						?>
 					</li>
 					<li>
 						<?php
-						$this->Form->label($this->_("Portcullis.row_meta.key", true), "key");
+						$this->Form->label($this->_("Enverido.row_meta.key", true), "key");
 						$this->Form->fieldTextarea("key", $this->Html->ifSet($vars->key));
 						?>
 					</li>
 					<li>
 						<?php
 						$this->Form->fieldCheckbox("use_ssl", "true", $this->Html->ifSet($vars->use_ssl, "true") == "true", array('id'=>"use_ssl"));
-						$this->Form->label($this->_("Portcullis.row_meta.use_ssl", true), "use_ssl", array('class'=>"inline"));
+						$this->Form->label($this->_("Enverido.row_meta.use_ssl", true), "use_ssl", array('class'=>"inline"));
 						?>
 					</li>
 				</ul>
 			</div>
 			
-			<div class="button_row"><a class="btn_right submit" href="#"><?php $this->_("Portcullis.add_row.add_btn");?></a></div>
+			<div class="button_row"><a class="btn_right submit" href="#"><?php $this->_("Enverido.add_row.add_btn");?></a></div>
 			<?php
 			$this->Form->end();
 			?>

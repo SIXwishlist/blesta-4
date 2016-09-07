@@ -1,6 +1,6 @@
 {
-    "name": "blesta/portcullis",
-    "description": "Portcullis Licensing Server",
+    "name": "blesta/enverido",
+    "description": "Enverido licensing server",
     "license": "proprietary",
     "type": "blesta-module",
     "require": {
