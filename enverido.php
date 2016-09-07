@@ -510,33 +510,6 @@ class Enverido extends Module {
 	}
 	
 	/**
-	 * Edits the module row on the remote server. Sets Input errors on failure,
-	 * preventing the row from being updated.
-	 *
-	 * @param stdClass $module_row The stdClass representation of the existing module row
-	 * @param array $vars An array of module info to update
-	 * @return array A numerically indexed array of meta fields for the module row containing:
-	 * 	- key The key for this meta field
-	 * 	- value The value for this key
-	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
-	 */
-	public function editModuleRow($module_row, array &$vars) {
-		// Same as adding
-		return $this->addModuleRow($vars);
-	}
-	
-	/**
-	 * Deletes the module row on the remote server. Sets Input errors on failure,
-	 * preventing the row from being deleted.
-	 *
-	 * @param stdClass $module_row The stdClass representation of the existing module row
-	 */
-	public function deleteModuleRow($module_row) {
-		// Nothing to do
-		return null;
-	}
-	
-	/**
 	 * Returns an array of available service delegation order methods. The module
 	 * will determine how each method is defined. For example, the method "first"
 	 * may be implemented such that it returns the module row with the least number
