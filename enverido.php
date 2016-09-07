@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Enverido Blesta Module
  *
@@ -561,11 +562,18 @@ class Enverido extends Module {
 		Loader::loadHelpers($this, array("Html"));
 		
 		$fields = new ModuleFields();
+        $module_row = $this->getModuleRow();
+
+        $api = $this->getApi('cogative', $module_row->meta->key);
+
+        $productsWithIds = array();
+        foreach($api->getProducts() as $p) {
+            $productsWithIds[] = array($p->id => $p->name);
+        }
 		
         // Set the Order Types as selectable options
-        $types = array('1' => 'test', '2' => 'test 2');
 		$license_type = $fields->label(Language::_("Enverido.package_fields.license_type", true), "license_type");
-		$license_type->attach($fields->fieldSelect("meta[license_type]", $types,
+		$license_type->attach($fields->fieldSelect("meta[license_type]", $productsWithIds,
 			$this->Html->ifSet($vars->meta['license_type']), array('id'=>"license_type")));
 		$fields->setField($license_type);
 
@@ -905,12 +913,12 @@ class Enverido extends Module {
 	 *
 	 * @param string $email The account email address
 	 * @param string $key The API Key
-	 * @return BuycpanelApi A BuycpanelApi instance
+	 * @return EnveridoApi An Enverido instance
 	 */
-	private function getApi($email, $key, $test_mode) {
+	private function getApi($organisation, $key) {
 		Loader::load(dirname(__FILE__) . DS . "apis" . DS . "enverido_api.php");
 
-		return new BuycpanelApi($email, $key, $test_mode);
+		return new EnveridoApi($organisation, $key);
 	}
 
 	/**
