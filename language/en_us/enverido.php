@@ -73,7 +73,7 @@ $lang['Enverido.row_meta.tooltip.key'] = "Enter your Enverido account API Key.";
 // Add row
 $lang['Enverido.add_row.box_title'] = "Add Enverido Account";
 $lang['Enverido.add_row.basic_title'] = "Basic Settings";
-$lang['Enverido.add_row.add_btn'] = "Add Enverido Account";
+$lang['Enverido.add_row.add_btn'] = "Add Account";
 
 
 // Edit row
