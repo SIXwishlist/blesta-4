@@ -5,6 +5,7 @@
     "type": "blesta-module",
     "require": {
         "blesta/composer-installer": "~1.0",
-        "guzzlehttp/guzzle": "^6.2"
+        "guzzlehttp/guzzle": "^6.2",
+        "psy/psysh": "@stable"
     }
 }
