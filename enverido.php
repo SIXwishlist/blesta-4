@@ -938,8 +938,9 @@ class Enverido extends Module {
 	private function getRowRules(&$vars) {
 		return array(
 			'email' => array(
-                'valid' => array(
+                'empty' => array(
                     'rule' => "isEmpty",
+                    'negate' => true,
                     'message' => Language::_("Enverido.!error.email.valid", true)
                 )
             ),
