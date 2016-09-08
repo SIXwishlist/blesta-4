@@ -570,8 +570,14 @@ class Enverido extends Module {
         $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
 
         $productsWithIds = array();
+        $moduleIds = array();
+
         foreach($api->getProducts() as $p) {
             $productsWithIds[$p->id] = $p->name;
+        }
+
+        foreach($module_rows as $m) {
+            $moduleIds[] = $m->id;
         }
 		
         // Set the Order Types as selectable options
@@ -581,7 +587,7 @@ class Enverido extends Module {
 		$fields->setField($license_type);
 
         $m_rows = $fields->label("Module rows", "m_rows");
-        $license_type->attach($fields->fieldSelect("meta[m_rows]", $module_rows,
+        $license_type->attach($fields->fieldSelect("meta[m_rows]", $moduleIds,
             $this->Html->ifSet($vars->meta['m_rows']), array('id'=>"m_rows")));
         $fields->setField($m_rows);
 
