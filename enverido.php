@@ -944,8 +944,9 @@ class Enverido extends Module {
                 )
             ),
             'organisation' => array(
-                'valid' => array(
+                'empty' => array(
                     'rule' => "isEmpty",
+                    'negate' => true,
                     'message' => Language::_("Enverido.!error.organisation.valid", true)
                 )
             ),
