@@ -1,7 +1,7 @@
 <?php
 // Errors
 $lang['Enverido.!error.email.valid'] = "Please enter your account email address.";
-$lang['Enverido.!error.email.valid'] = "Please enter your organisation.";
+$lang['Enverido.!error.organisation.valid'] = "Please enter your organisation.";
 $lang['Enverido.!error.key.empty'] = "Please enter your API Key.";
 $lang['Enverido.!error.test_mode.valid'] = "Test mode must be set to true or false.";
 $lang['Enverido.!error.meta[license_type].valid'] = "Please select a valid license type.";
