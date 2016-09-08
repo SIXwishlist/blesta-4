@@ -565,7 +565,7 @@ class Enverido extends Module {
 		
 		$fields = new ModuleFields();
         $module_rows = $this->getModuleRows();
-        $module_row = $this->getModuleRow(14);
+        $module_row = $this->getModuleRow($module_rows[0]);
 
         $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
 
