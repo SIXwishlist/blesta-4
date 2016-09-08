@@ -1,5 +1,7 @@
 <?php
 
+require_once 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+
 /**
  * Enverido Blesta Module
  *
@@ -913,12 +915,12 @@ class Enverido extends Module {
 	 *
 	 * @param string $email The account email address
 	 * @param string $key The API Key
-	 * @return EnveridoApi An Enverido instance
+	 * @return \Apis\EnveridoApi An Enverido instance
 	 */
 	private function getApi($organisation, $key) {
 		Loader::load(dirname(__FILE__) . DS . "apis" . DS . "enverido_api.php");
 
-		return new EnveridoApi($organisation, $key);
+		return new \Apis\EnveridoApi($organisation, $key);
 	}
 
 	/**
