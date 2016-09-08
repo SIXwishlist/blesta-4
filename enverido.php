@@ -487,7 +487,7 @@ class Enverido extends Module {
 	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
 	 */
 	public function addModuleRow(array &$vars) {
-		$meta_fields = array("email", "key");
+		$meta_fields = array("email", "key", "organisation");
 		$encrypted_fields = array("key");
 
 		$this->Input->setRules($this->getRowRules($vars));
@@ -564,9 +564,10 @@ class Enverido extends Module {
 		Loader::loadHelpers($this, array("Html"));
 		
 		$fields = new ModuleFields();
+        $module_rows = $this->getModuleRows();
         $module_row = $this->getModuleRow(14);
 
-        $api = $this->getApi('cogative', $module_row->meta->key);
+        $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
 
         $productsWithIds = array();
         foreach($api->getProducts() as $p) {
@@ -578,6 +579,11 @@ class Enverido extends Module {
 		$license_type->attach($fields->fieldSelect("meta[license_type]", $productsWithIds,
 			$this->Html->ifSet($vars->meta['license_type']), array('id'=>"license_type")));
 		$fields->setField($license_type);
+
+        $m_rows = $fields->label("Module rows", "m_rows");
+        $license_type->attach($fields->fieldSelect("meta[m_rows]", $module_rows,
+            $this->Html->ifSet($vars->meta['m_rows']), array('id'=>"m_rows")));
+        $fields->setField($m_rows);
 
 		return $fields;
 	}
@@ -935,6 +941,12 @@ class Enverido extends Module {
                 'valid' => array(
                     'rule' => "isEmpty",
                     'message' => Language::_("Enverido.!error.email.valid", true)
+                )
+            ),
+            'organisation' => array(
+                'valid' => array(
+                    'rule' => "isEmpty",
+                    'message' => Language::_("Enverido.!error.organisation.valid", true)
                 )
             ),
             'key' => array(

@@ -1,6 +1,7 @@
 <?php
 // Errors
 $lang['Enverido.!error.email.valid'] = "Please enter your account email address.";
+$lang['Enverido.!error.email.valid'] = "Please enter your organisation.";
 $lang['Enverido.!error.key.empty'] = "Please enter your API Key.";
 $lang['Enverido.!error.test_mode.valid'] = "Test mode must be set to true or false.";
 $lang['Enverido.!error.meta[license_type].valid'] = "Please select a valid license type.";
@@ -65,6 +66,8 @@ $lang['Enverido.service_info.license_type'] = "License";
 
 // Row meta
 $lang['Enverido.row_meta.email'] = "Account Email Address";
+$lang['Enverido.row_meta.organisation'] = "Organisation";
+$lang['Enverido.row_meta.tooltip.organisation'] = "Enter your organisation, as listed under your Enverido account.";
 $lang['Enverido.row_meta.tooltip.email'] = "Enter your Enverido account email address.";
 $lang['Enverido.row_meta.key'] = "API Key";
 $lang['Enverido.row_meta.tooltip.key'] = "Enter your Enverido account API Key.";
