@@ -487,7 +487,7 @@ class Enverido extends Module {
 	 * 	- encrypted Whether or not this field should be encrypted (default 0, not encrypted)
 	 */
 	public function addModuleRow(array &$vars) {
-		$meta_fields = array("email", "key", "organisation");
+		$meta_fields = array("email", "organisation", "key");
 		$encrypted_fields = array("key");
 
 		$this->Input->setRules($this->getRowRules($vars));
