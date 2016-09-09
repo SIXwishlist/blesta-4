@@ -48,7 +48,8 @@ $lang['Enverido.tab_client_ip.field_submit'] = "Save";
 
 
 // Package fields
-$lang['Enverido.package_fields.license_type'] = "License Type";
+$lang['Enverido.package_fields.product'] = "Product";
+$lang['Enverido.package_fields.authority'] = "Issuing Authority";
 
 
 // Service fields

@@ -50,5 +50,15 @@ class EnveridoApi {
         $response = $this->httpClient->request('GET', "/product");
         return json_decode($response->getBody());
     }
+
+    /**
+     * Get an array of issuing authority objects
+     * @return mixed
+     */
+
+    public function getIssuingAuthorities() {
+        $response = $this->httpClient->request('GET', "/authority");
+        return json_decode($response->getBody());
+    }
 }
 ?>

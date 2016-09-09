@@ -363,20 +363,20 @@ class Enverido extends Module {
 	 */
 	public function addPackage(array $vars=null) {
         // Set rules to validate input data
-		$this->Input->setRules($this->getPackageRules($vars));
+		//$this->Input->setRules($this->getPackageRules($vars));
 		
 		// Build meta data to return
 		$meta = array();
-		if ($this->Input->validates($vars)) {
-			// Return all package meta fields
-			foreach ($vars['meta'] as $key => $value) {
-				$meta[] = array(
-					'key' => $key,
-					'value' => $value,
-					'encrypted' => 0
-				);
-			}
-		}
+
+        // Return all package meta fields
+        foreach ($vars['meta'] as $key => $value) {
+            $meta[] = array(
+                'key' => $key,
+                'value' => $value,
+                'encrypted' => 0
+            );
+        }
+
 		return $meta;
 	}
 	
@@ -564,32 +564,47 @@ class Enverido extends Module {
 		Loader::loadHelpers($this, array("Html"));
 		
 		$fields = new ModuleFields();
-        $module_rows = $this->getModuleRows();
-        $module_row = $this->getModuleRow($module_rows[0]->id);
 
-        $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
+        // Set the current module row to be null
+        $module_row = null;
 
+        // If a module row has been sent by the form, then use that one
+        if(isset($vars->module_row) && $vars->module_row > 0) {
+            // This will happen when the drop-down with the module rows is changed
+            // an AJAX request reloads the module options section.
+            $module_row = $vars->module_row;
+        } else {
+            // Otherwise get an array of all the rows and use the first one listed
+            // This will happen on initial page load
+            $rows = $this->getModuleRows();
+            $module_row = $rows[0]->id;
+        }
+
+        // Get an API instance from the module row's organisation and API key
+        $api = $this->getApi($this->getModuleRow($module_row)->meta->organisation, $this->getModuleRow($module_row)->meta->key);
+
+        // Get a list of products from the API and store the ID and name in an array for insertion into a select element
         $productsWithIds = array();
-        $moduleIds = array();
-
         foreach($api->getProducts() as $p) {
             $productsWithIds[$p->id] = $p->name;
         }
 
-        foreach($module_rows as $m) {
-            $moduleIds[] = $m->id;
+        // Get a list of issuing authorities from the API and store the ID and name in an array for insertion into a select element
+        $authoritiesWithIds = array();
+        foreach($api->getIssuingAuthorities() as $a) {
+            $authoritiesWithIds[$a->id] = $a->name;
         }
-		
-        // Set the Order Types as selectable options
-		$license_type = $fields->label(Language::_("Enverido.package_fields.license_type", true), "license_type");
-		$license_type->attach($fields->fieldSelect("meta[license_type]", $productsWithIds,
-			$this->Html->ifSet($vars->meta['license_type']), array('id'=>"license_type")));
-		$fields->setField($license_type);
 
-        $m_rows = $fields->label("Module rows", "m_rows");
-        $license_type->attach($fields->fieldSelect("meta[m_rows]", $moduleIds,
-            $this->Html->ifSet($vars->meta['m_rows']), array('id'=>"m_rows")));
-        $fields->setField($m_rows);
+        // Set the package's available options
+		$product = $fields->label(Language::_("Enverido.package_fields.product", true), "product");
+		$product->attach($fields->fieldSelect("meta[product]", $productsWithIds,
+			$this->Html->ifSet($vars->meta['product']), array('id'=>"product")));
+		$fields->setField($product);
+
+        $authority = $fields->label(Language::_("Enverido.package_fields.authority", true), "authority");
+        $authority->attach($fields->fieldSelect("meta[authority]", $authoritiesWithIds,
+            $this->Html->ifSet($vars->meta['authority']), array('id'=>"authority")));
+        $fields->setField($authority);
 
 		return $fields;
 	}
@@ -966,27 +981,5 @@ class Enverido extends Module {
             )
 		);
 	}
-
-    /**
-     * Bulids and returns the rules required for validating packages
-     *
-     * @param array $vars An array of key/value pairs
-     * @return array An array of Input rules suitable for Input::setRules()
-     */
-    private function getPackageRules($vars) {
-        // Convert integer types to string
-        $license_types = array_keys($this->getLicenseTypes());
-        foreach ($license_types as &$type)
-            $type = (string)$type;
-
-        return array(
-			'meta[license_type]' => array(
-				'valid' => array(
-					'rule' => array("in_array", $license_types),
-					'message' => Language::_("Enverido.!error.meta[license_type].valid", true)
-				)
-			)
-        );
-    }
 }
 ?>
