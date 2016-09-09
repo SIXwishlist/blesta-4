@@ -21,6 +21,13 @@
                     </li>
                     <li>
                         <?php
+                        $this->Form->label($this->_("Enverido.row_meta.organisation", true), "organisation");
+                        $this->Form->fieldText("organisation", $this->Html->ifSet($vars->organisation), array('id' => "organisation"));
+                        ?>
+                        <span class="tooltip"><?php $this->_("AppController.tooltip.text");?><div><?php $this->_("Enverido.row_meta.tooltip.organisation");?></div></span>
+                    </li>
+                    <li>
+                        <?php
 						$this->Form->label($this->_("Enverido.row_meta.key", true), "key");
 						$this->Form->fieldText("key", $this->Html->ifSet($vars->key), array('id' => "key"));
 						?>
