@@ -376,7 +376,6 @@ class Enverido extends Module {
                 'encrypted' => 0
             );
         }
-
 		return $meta;
 	}
 	
