@@ -34,28 +34,44 @@ class Enverido extends Module {
 	 * @return boolean True if the service validates, false otherwise. Sets Input errors when false.
 	 */
 	public function validateService($package, array $vars=null) {
-        // Set rule to validate IP addresses
-        $ip_address_rule = (function_exists("filter_var") ? array("filter_var", FILTER_VALIDATE_IP) : "");
-        if (empty($ip_address_rule)) {
-            $range = "(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])";
-            $ip_address_rule = array(array("matches", "/^(?:" . $range . "\." . $range . "\." . $range . "\." . $range . ")$/"));
+        // Get information about the product from the Enverido API
+        $productInfo = $this->getProductInformationFromPackage($package);
+
+        $rules = array(
+            'enverido_email' => array(
+                'empty' => array(
+                    'rule' => 'isEmpty',
+                    'negate' => 'true',
+                    'message' => Language::_("Enverido.!error.enverido_email.empty", true)
+                )
+            )
+        );
+
+        // Only validate the IP address if the product relies on IP address info
+        if($productInfo->lock_ip) {
+            $rules['enverido_ip'] = array(
+                'empty' => array(
+                    'rule' => 'isEmpty',
+                    'negate' => 'true',
+                    'message' => Language::_("Enverido.!error.enverido_ip.empty", true)
+                ),
+                'format' => array(
+                    'rule' => array('matches', "/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/"),
+                    'message' => Language::_("Enverido.!error.enverido_ip.format", true)
+                )
+            );
         }
 
-		// Set rules
-		$rules = array(
-            'buycpanel_ipaddress' => array(
-                'format' => array(
-                    'rule' => $ip_address_rule,
-                    'message' => Language::_("Enverido.!error.buycpanel_ipaddress.format", true)
+        // Only validate the domain name if the product relies on domain info
+        if($productInfo->lock_domain_name) {
+            $rules['enverido_domain'] = array(
+                'empty' => array(
+                    'rule' => 'isEmpty',
+                    'negate' => 'true',
+                    'message' => Language::_("Enverido.!error.enverido_domain.empty", true)
                 )
-            ),
-			'buycpanel_domain' => array(
-				'format' => array(
-					'rule' => array(array($this, "validateHostName")),
-					'message' => Language::_("Enverido.!error.buycpanel_domain.format", true)
-				)
-			)
-		);
+            );
+        }
 
 		$this->Input->setRules($rules);
 		return $this->Input->validates($vars);
@@ -95,15 +111,38 @@ class Enverido extends Module {
         if ($this->Input->errors())
 			return;
 
+        // Generate an expiry date
+        // Get term (eg: 1, 2, 5, 10) This will be attached to the period (days, months, years, etc)
+        $term = $package->pricing->term;
+
+        $today = new DateTime();
+
+        // Here we add the expected amount of time between today and the licence expiration
+        switch($package->pricing->period) {
+            case 'onetime':
+                // Expiration date 100 years in the future
+                $today->add(new DateInterval('P100Y'));
+                break;
+            case 'year':
+                $today->add(new DateInterval('P'.$term.'Y'));
+                break;
+            case 'month':
+                $today->add(new DateInterval('P'.$term.'M'));
+                break;
+            case 'week':
+                $today->add(new DateInterval('P'.$term.'W'));
+                break;
+            case 'day':
+                $today->add(new DateInterval('P'.$term.'D'));
+                break;
+        }
+
         // Only provision the service if 'use_module' is true
 		if ($vars['use_module'] == "true") {
-            try {
-                // Generate licence
-                $this->processResponse($api, $response);
-            }
-            catch (Exception $e) {
-                // Internal Error
-				$this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+
+            $licence = $api->generateLicence($package->meta->product, $package->meta->authority, $params['email'], $params['ip'], $params['domain'], $today->getTimestamp());
+            if(!isset($licence->short_code)) {
+                $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
             }
             
             if ($this->Input->errors())
@@ -113,18 +152,23 @@ class Enverido extends Module {
 		// Return service fields
 		return array(
 			array(
-				'key' => "buycpanel_ipaddress",
-				'value' => $params['serverip'],
+				'key' => "enverido_ip",
+				'value' => $params['ip'],
 				'encrypted' => 0
 			),
 			array(
-				'key' => "buycpanel_domain",
+				'key' => "enverido_domain",
 				'value' => $params['domain'],
 				'encrypted' => 0
 			),
             array(
-                'key' => "buycpanel_license",
-                'value' => $license,
+                'key' => "enverido_email",
+                'value' => $params['email'],
+                'encrypted' => 0
+            ),
+            array(
+                'key' => "enverido_shortcode",
+                'value' => $licence->short_code,
                 'encrypted' => 0
             )
         );
@@ -588,6 +632,22 @@ class Enverido extends Module {
 
 		return $fields;
 	}
+
+    /**
+     * Get product information from the Enverido API based on the package currently selected. This information
+     * can then be used to change the options available to the user
+     *
+     * @param stdClass $package A stdClass object representing the selected package
+     * @return stdClass Product information from the API
+     * @see https://docs.cogative.com/pages/viewpage.action?pageId=1409436#id-/{PRODUCT-ID}-GET
+     */
+
+	private function getProductInformationFromPackage($package) {
+        $module_row = $this->getModuleRow($package->module_row);
+
+        $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
+        return $api->getProduct($package->meta->product);
+    }
 	
 	/**
 	 * Returns an array of key values for fields stored for a module, package,
@@ -622,20 +682,35 @@ class Enverido extends Module {
 		
 		$fields = new ModuleFields();
 
-        $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
-		$domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id'=>"enverido_domain")));
+        $product = $this->getProductInformationFromPackage($package);
+
+        // Licensee Email Address
+        $email = $fields->label(Language::_("Enverido.service_fields.email", true), "enverido_email");
+        $email->attach($fields->fieldText("enverido_email", $this->Html->ifSet($vars->enverido_email, $this->Html->ifSet($vars->email)), array('id'=>"enverido_email")));
         // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
-		$domain->attach($tooltip);
-		$fields->setField($domain);
-        
-        // Set the IP address as selectable options
-		$ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
-		$ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id'=>"enverido_ip")));
-        // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
-		$ip->attach($tooltip);
-		$fields->setField($ip);
+        $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.email", true));
+        $email->attach($tooltip);
+        $fields->setField($email);
+
+        if($product->lock_domain_name) {
+            // Domain name
+            $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
+            $domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id'=>"enverido_domain")));
+            // Add tooltip
+            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
+            $domain->attach($tooltip);
+            $fields->setField($domain);
+        }
+
+        if($product->lock_ip) {
+            // Set the IP address as selectable options
+            $ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
+            $ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id'=>"enverido_ip")));
+            // Add tooltip
+            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
+            $ip->attach($tooltip);
+            $fields->setField($ip);
+        }
 		
 		return $fields;
 	}
@@ -859,17 +934,10 @@ class Enverido extends Module {
 	 */
 	private function getFieldsFromInput(array $vars, $package) {
 		$fields = array(
-            'serverip' => isset($vars['buycpanel_ipaddress']) ? $vars['buycpanel_ipaddress']: null,
-			'domain' => isset($vars['buycpanel_domain']) ? $vars['buycpanel_domain'] : null,
-            // Set the order type to 25 to signify it is an addon license
-            'ordertype' => (isset($vars['ordertype']) ? $vars['ordertype'] : (isset($package->meta->license_type) && is_numeric($package->meta->license_type) ? $package->meta->license_type : "25"))
+            'ip' => isset($vars['enverido_ip']) ? $vars['enverido_ip']: null,
+			'domain' => isset($vars['enverido_domain']) ? $vars['enverido_domain'] : null,
+            'email' => isset($vars['enverido_email']) ? $vars['enverido_email'] : null
 		);
-
-        // If the order type is an addon, the license type should be set
-        if ($fields['ordertype'] == "25") {
-            $key = (isset($vars['license_type']) ? $vars['license_type'] : (isset($package->meta->license_type) ? $package->meta->license_type : ""));
-            $fields['addon'] = array($key => "1");
-        }
 
 		return $fields;
 	}

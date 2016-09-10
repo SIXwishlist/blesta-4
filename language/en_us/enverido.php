@@ -6,8 +6,11 @@ $lang['Enverido.!error.key.empty'] = "Please enter your API Key.";
 $lang['Enverido.!error.test_mode.valid'] = "Test mode must be set to true or false.";
 $lang['Enverido.!error.meta[license_type].valid'] = "Please select a valid license type.";
 
-$lang['Enverido.!error.buycpanel_ipaddress.format'] = "Please enter a valid IP address.";
-$lang['Enverido.!error.buycpanel_domain.format'] = "Please enter a valid domain name.";
+$lang['Enverido.!error.enverido_email.empty'] = "Please enter an email address.";
+
+$lang['Enverido.!error.enverido_ip.format'] = "Please enter a valid IP address.";
+$lang['Enverido.!error.enverido_ip.empty'] = "Please enter an IP address.";
+$lang['Enverido.!error.enverido_domain.empty'] = "Please enter a domain name.";
 
 $lang['Enverido.!error.api.internal'] = "An internal error occurred, or the server did not respond to the request.";
 
@@ -53,10 +56,13 @@ $lang['Enverido.package_fields.authority'] = "Issuing Authority";
 
 
 // Service fields
+$lang['Enverido.service_fields.email'] = "Licence Holder Email Address";
+$lang['Enverido.service_field.tooltip.email'] = "Enter the email address of the licence holder.";
+
 $lang['Enverido.service_fields.ipaddress'] = "IP Address";
-$lang['Enverido.service_field.tooltip.ipaddress'] = "Enter the IP address that the licence will apply to.";
+$lang['Enverido.service_field.tooltip.ipaddress'] = "Enter the IP address you wish to license.";
 $lang['Enverido.service_fields.domain'] = "Domain";
-$lang['Enverido.service_field.tooltip.domain'] = "Enter your domain name.";
+$lang['Enverido.service_field.tooltip.domain'] = "Enter the domain name you wish to license.";
 $lang['Enverido.service_field.tooltip.domain_edit'] = "Changing the domain name will only affect the service locally.";
 
 

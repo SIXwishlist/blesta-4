@@ -52,12 +52,46 @@ class EnveridoApi {
     }
 
     /**
+     * Retrieve a specific product's information from the API
+     * @param $id int The product ID
+     * @return mixed
+     */
+
+    public function getProduct($id) {
+        $response = $this->httpClient->request('GET', '/product/'.$id);
+        return json_decode($response->getBody());
+    }
+
+    /**
      * Get an array of issuing authority objects
      * @return mixed
      */
 
     public function getIssuingAuthorities() {
         $response = $this->httpClient->request('GET', "/authority");
+        return json_decode($response->getBody());
+    }
+
+    public function generateLicence($product, $authority, $email,  $ip, $domain, $expiry) {
+
+        $params = array(
+            'authority' => $authority,
+            'email' => $email,
+            'expiry' => $expiry
+        );
+
+        if($ip != null) {
+            $params['ip'] = $ip;
+        }
+
+        if($domain != null) {
+            $params['domain'] = $domain;
+        }
+
+        $response = $this->httpClient->request('POST', '/product/'.$product.'/licence', [
+            'form_params' => $params
+        ]);
+
         return json_decode($response->getBody());
     }
 }
