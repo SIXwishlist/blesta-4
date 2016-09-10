@@ -100,6 +100,7 @@ class Enverido extends Module {
 	 */
 	public function addService($package, array $vars=null, $parent_package=null, $parent_service=null, $status="pending", $options = array()) {
 		// Get module row and API
+
 		$module_row = $this->getModuleRow();
 		$api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
         
@@ -113,12 +114,23 @@ class Enverido extends Module {
 
         // Generate an expiry date
         // Get term (eg: 1, 2, 5, 10) This will be attached to the period (days, months, years, etc)
-        $term = $package->pricing->term;
+
+        // Blesta passes all pricing terms data so we need to work out which one the user picked
+        $term = null; // eg 15
+        $period = null; // eg days
+
+        foreach($package->pricing as $pricing) {
+            // If the user picked this pricing option then set our term and period variables
+            if($pricing->id == $vars['pricing_id']) {
+                $term = $pricing->term;
+                $period = $pricing->period;
+            }
+        }
 
         $today = new DateTime();
 
         // Here we add the expected amount of time between today and the licence expiration
-        switch($package->pricing->period) {
+        switch($period) {
             case 'onetime':
                 // Expiration date 100 years in the future
                 $today->add(new DateInterval('P100Y'));
