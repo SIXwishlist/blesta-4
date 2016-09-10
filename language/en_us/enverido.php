@@ -67,8 +67,10 @@ $lang['Enverido.service_field.tooltip.domain_edit'] = "Changing the domain name 
 
 
 // Service info
-$lang['Enverido.service_info.ip_address'] = "IP Address";
-$lang['Enverido.service_info.license_type'] = "License";
+$lang['Enverido.service_info.email'] = "Licensee Email";
+$lang['Enverido.service_info.ip'] = "Licensed IP";
+$lang['Enverido.service_info.domain'] = "Licensed Domain";
+$lang['Enverido.service_info.shortcode'] = "Licence Short Code";
 
 
 // Row meta
