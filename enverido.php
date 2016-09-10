@@ -160,6 +160,14 @@ class Enverido extends Module {
             if ($this->Input->errors())
 				return;
         }
+
+        // If not provisioned yet - this is designed in cases where the service is pending rather
+        // than if the API call failed.
+        if(!isset($licence)) {
+            // Set a dummy short-code value so that provision won't fail
+            $licence = new stdClass();
+            $licence->short_code="N/A";
+        }
         
 		// Return service fields
 		return array(
