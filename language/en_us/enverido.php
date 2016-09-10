@@ -54,7 +54,7 @@ $lang['Enverido.package_fields.authority'] = "Issuing Authority";
 
 // Service fields
 $lang['Enverido.service_fields.ipaddress'] = "IP Address";
-$lang['Enverido.service_field.tooltip.ipaddress'] = "Enter the IP address that the license will apply to.";
+$lang['Enverido.service_field.tooltip.ipaddress'] = "Enter the IP address that the licence will apply to.";
 $lang['Enverido.service_fields.domain'] = "Domain";
 $lang['Enverido.service_field.tooltip.domain'] = "Enter your domain name.";
 $lang['Enverido.service_field.tooltip.domain_edit'] = "Changing the domain name will only affect the service locally.";

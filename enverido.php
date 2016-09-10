@@ -85,21 +85,10 @@ class Enverido extends Module {
 	public function addService($package, array $vars=null, $parent_package=null, $parent_service=null, $status="pending", $options = array()) {
 		// Get module row and API
 		$module_row = $this->getModuleRow();
-		$api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
-		
-        // Disallow an ordertype (license) from overriding the package license except when this option is set. See Enverido::unsuspendService()
-        if (!isset($options['allow_order_type']) || !$options['allow_order_type'])
-            unset($vars['ordertype'], $vars['license_type']);
+		$api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
         
         // Get fields
         $params = $this->getFieldsFromInput((array)$vars, $package);
-
-        // Set the addon type separately
-        $temp_params = $params;
-        if (isset($params['addon'])) {
-            $temp_params = array_merge($params, $params['addon']);
-            unset($temp_params['addon']);
-        }
 
 		$this->validateService($package, $vars);
 
@@ -109,8 +98,7 @@ class Enverido extends Module {
         // Only provision the service if 'use_module' is true
 		if ($vars['use_module'] == "true") {
             try {
-                $command = new BuycpanelAll($api);
-                $response = $command->orderIp($temp_params);
+                // Generate licence
                 $this->processResponse($api, $response);
             }
             catch (Exception $e) {
@@ -120,13 +108,6 @@ class Enverido extends Module {
             
             if ($this->Input->errors())
 				return;
-        }
-
-        // Get the first key in the addon array (the license type), or default to the order type (non-addon license)
-        $license = $params['ordertype'];
-        if (isset($params['addon'])) {
-            reset($params['addon']);
-            $license = key($params['addon']);
         }
         
 		// Return service fields
@@ -641,16 +622,16 @@ class Enverido extends Module {
 		
 		$fields = new ModuleFields();
 
-        $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "buycpanel_domain");
-		$domain->attach($fields->fieldText("buycpanel_domain", $this->Html->ifSet($vars->buycpanel_domain, $this->Html->ifSet($vars->domain)), array('id'=>"buycpanel_domain")));
+        $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
+		$domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id'=>"enverido_domain")));
         // Add tooltip
 		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
 		$domain->attach($tooltip);
 		$fields->setField($domain);
         
         // Set the IP address as selectable options
-		$ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "buycpanel_ipaddress");
-		$ip->attach($fields->fieldText("buycpanel_ipaddress", $this->Html->ifSet($vars->buycpanel_ipaddress), array('id'=>"buycpanel_ipaddress")));
+		$ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
+		$ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id'=>"enverido_ip")));
         // Add tooltip
 		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
 		$ip->attach($tooltip);
