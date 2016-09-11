@@ -909,7 +909,7 @@ class Enverido extends Module {
 	 */
 	public function getClientTabs($package) {
 		return array(
-            'tabClientIp' => array('name' => Language::_("Enverido.tab_ip", true), 'icon' => "fa fa-edit")
+            'tabReissueLicence' => array('name' => Language::_("Enverido.tab_reissue_licence", true), 'icon' => "fa fa-refresh")
 		);
 	}
 
@@ -923,24 +923,34 @@ class Enverido extends Module {
 	 * @param array $files Any FILES parameters
 	 * @return string The string representing the contents of this tab
 	 */
-	public function tabClientIp($package, $service, array $get=null, array $post=null, array $files=null) {
-        $this->view = new View("tab_client_ip", "default");
+	public function tabReissueLicence($package, $service, array $get=null, array $post=null, array $files=null) {
+        $this->view = new View("tab_reissue_licence", "default");
 		$this->view->base_uri = $this->base_uri;
 		// Load the helpers required for this view
 		Loader::loadHelpers($this, array("Form", "Html"));
 
         // Fetch the service fields
         $service_fields = $this->serviceFieldsToObject($service->fields);
+
+        $vars = array(
+            'enverido_email' => $service_fields->enverido_email,
+            'enverido_domain' => $service_fields->enverido_domain,
+            'enverido_ip' => $service_fields->enverido_ip
+        );
         
         if (!empty($post)) {
             // Get module row and API
             $module_row = $this->getModuleRow();
-            $api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
+            $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
 
             $vars = array(
-                'buycpanel_ipaddress' => (isset($post['buycpanel_ipaddress']) ? $post['buycpanel_ipaddress'] : ""),
-                'buycpanel_domain' => (isset($service_fields->buycpanel_domain) ? $service_fields->buycpanel_domain : "")
+                'enverido_email' => (isset($post['enverido_email']) ? $post['enverido_email'] : $service_fields->enverido_email),
+                'enverido_domain' => (isset($post['enverido_domain']) ? $post['enverido_domain'] : null),
+                'enverido_ip' => (isset($post['enverido_ip']) ? $post['enverido_ip'] : null),
             );
+
+            $api->reissue_licence($package->meta->product, $service_fields->enverido_licence_id);
+            $api->editLicence($vars['enverido_ip'], $vars['enverido_domain'], $vars['enverido_email'], $package->meta->product, $service_fields->enverido_licence_id);
 
             // Update the service IP address
             Loader::loadModels($this, array("Services"));
@@ -948,16 +958,10 @@ class Enverido extends Module {
 
             if ($this->Services->errors())
                 $this->Input->setErrors($this->Services->errors());
-
-            $vars = $post;
         }
 
-        // Set default vars
-		if (empty($vars))
-			$vars = array('buycpanel_ipaddress' => (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : ""));
-
-		$this->view->set("vars", (object)$vars);
-		$this->view->set("service_fields", $service_fields);
+        $this->view->set("vars", $vars);
+        $this->view->set("service_fields", $service_fields);
 		$this->view->set("service_id", $service->id);
 
 		$this->view->set("view", $this->view->view);

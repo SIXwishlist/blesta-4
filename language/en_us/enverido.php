@@ -40,14 +40,19 @@ $lang['Enverido.manage.module_rows_no_results'] = "There are no accounts.";
 
 
 // Tabs
-$lang['Enverido.tab_client_ip.heading_changeip'] = "Change IP";
-$lang['Enverido.tab_client_ip.current_ipaddress'] = "Current IP Address";
-$lang['Enverido.tab_client_ip.field_ipaddress'] = "New IP Address";
-$lang['Enverido.tab_ip'] = "Change IP";
+$lang['Enverido.tab_reissue_licence.heading'] = "Reissue Licence";
+$lang['Enverido.tab_reissue_licence.current_ip'] = "Current IP Address";
+$lang['Enverido.tab_reissue_licence.new_ip'] = "Reissued IP Address";
+$lang['Enverido.tab_reissue_licence.current_domain'] = "Current Domain";
+$lang['Enverido.tab_reissue_licence.new_domain'] = "Reissued Domain";
+$lang['Enverido.tab_reissue_licence.current_email'] = "Current Licensee Email";
+$lang['Enverido.tab_reissue_licence.new_email'] = "Reissued Licensee Email";
+
+$lang['Enverido.tab_reissue_licence'] = "Reissue Licence";
 
 
-// Client Change IP tab
-$lang['Enverido.tab_client_ip.field_submit'] = "Save";
+// Client Reissue Licence Tab
+$lang['Enverido.tab_reissue_licence.field_submit'] = "Reissue";
 
 
 // Package fields
@@ -93,38 +98,4 @@ $lang['Enverido.edit_row.box_title'] = "Edit Enverido Account";
 $lang['Enverido.edit_row.basic_title'] = "Basic Settings";
 $lang['Enverido.edit_row.add_btn'] = "Update Account";
 
-
-// Order types
-$lang['Enverido.license_types.0'] = "cPanel / WHM Plus!";
-$lang['Enverido.license_types.10'] = "cPanel VPS Optimized";
-$lang['Enverido.license_types.20'] = "cPanel VPS Optimized Yearly";
-$lang['Enverido.license_types.3'] = "One Year License";
-$lang['Enverido.license_types.4'] = "Two Year License";
-$lang['Enverido.license_types.5'] = "Three Year License";
-$lang['Enverido.license_types.attracta'] = "Attracta";
-$lang['Enverido.license_types.blesta'] = "Blesta";
-$lang['Enverido.license_types.clientexec'] = "ClientExec";
-$lang['Enverido.license_types.cloudlinux'] = "Cloud Linux";
-$lang['Enverido.license_types.fantastico'] = "Fantastico";
-$lang['Enverido.license_types.installatron'] = "Installatron";
-$lang['Enverido.license_types.installatronvps'] = "Installatron VPS";
-$lang['Enverido.license_types.litespeed'] = "Lite Speed";
-$lang['Enverido.license_types.litespeed_cpu'] = "Lite Speed CPU";
-$lang['Enverido.license_types.litespeedultra'] = "Lite Speed Ultra";
-$lang['Enverido.license_types.litespeedvps'] = "Lite Speed VPS";
-$lang['Enverido.license_types.rvsitebuilder'] = "RVSiteBuilder";
-$lang['Enverido.license_types.rvsitebuildervps'] = "RVSiteBuilder VPS";
-$lang['Enverido.license_types.rvskin'] = "RVSkin";
-$lang['Enverido.license_types.softaculous'] = "Softaculous";
-$lang['Enverido.license_types.solusvm'] = "SolusVM Enterprise";
-$lang['Enverido.license_types.solusvmslave'] = "SolusVM Micro Slave";
-$lang['Enverido.license_types.solusvminislave'] = "SolusVM Mini Slave";
-$lang['Enverido.license_types.solusvmunslave'] = "SolusVM Slave";
-$lang['Enverido.license_types.solusvmnovirtual'] = "SolusVM Slave Only Master";
-$lang['Enverido.license_types.spamscan'] = "Spam Scan";
-$lang['Enverido.license_types.trendyflash'] = "TrendySite Builder Lite";
-$lang['Enverido.license_types.trendyflashdedicated'] = "TrendySite Builder Dedicated";
-$lang['Enverido.license_types.trendyflashvps'] = "TrendySite Builder VPS";
-$lang['Enverido.license_types.whmsonic'] = "WHMSonic";
-$lang['Enverido.license_types.whmxtra'] = "WHMXtra";
 ?>

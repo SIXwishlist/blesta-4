@@ -115,6 +115,11 @@ class EnveridoApi {
         return json_decode($response->getBody());
     }
 
+    public function reissue_licence($product, $licence) {
+        $response = $this->httpClient->request('PATCH', '/product/'.$product.'/licence/'.$licence.'/reissue');
+        return json_decode($response->getBody());
+    }
+
     public function editLicence($ip, $domain, $email, $product, $licence) {
 
         $params = array(
