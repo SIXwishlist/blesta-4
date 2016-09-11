@@ -215,9 +215,9 @@ class Enverido extends Module {
 	 * @see Module::getModuleRow()
 	 */
 	public function editService($package, $service, array $vars=null, $parent_package=null, $parent_service=null) {
-		// Get module row and API
-		$module_row = $this->getModuleRow();
-		$api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
+        // Get module row and API
+        $module_row = $this->getModuleRow();
+        $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
 		
         // Validate the service-specific fields
 		$this->validateService($package, $vars);
@@ -227,32 +227,48 @@ class Enverido extends Module {
         
         // Get the service fields
 		$service_fields = $this->serviceFieldsToObject($service->fields);
-		
-		// Check for fields that changed
-		$delta = array();
-		foreach ($vars as $key => $value) {
-			if (!array_key_exists($key, $service_fields) || $vars[$key] != $service_fields->$key)
-				$delta[$key] = $value;
-		}
 
         // Only provision the service if 'use_module' is true
 		if ($vars['use_module'] == "true") {
-            // Only change IP address
-            $current_ip = (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : "");
-            $new_ip = (isset($delta['buycpanel_ipaddress']) ? $delta['buycpanel_ipaddress'] : $current_ip);
 
-            $this->changeIp($api, $current_ip, $new_ip);
+		    // Check if the fields are relevant, if they are then use their values otherwise use null.
+		    $ip = isset($vars['enverido_ip']) ? $vars['enverido_ip'] : null;
+            $domain = isset($vars['enverido_domain']) ? $vars['enverido_domain']: null;
+
+		    $r = $api->editLicence($ip, $domain, $vars['enverido_email'], $package->meta->product, $service_fields->enverido_licence_id);
             
             if ($this->Input->errors())
 				return;
         }
-        
-        // Return all the service fields
-		$fields = array();
-		foreach ($service_fields as $key => $value)
-			$fields[] = array('key' => $key, 'value' => (isset($delta[$key]) ? $delta[$key] : $value), 'encrypted' => 0);
 
-		return $fields;
+        // Return service fields
+        return array(
+            array(
+                'key' => 'enverido_licence_id',
+                'value' => $service_fields->enverido_licence_id,
+                'encrypted' => 0
+            ),
+            array(
+                'key' => "enverido_ip",
+                'value' => $ip,
+                'encrypted' => 0
+            ),
+            array(
+                'key' => "enverido_domain",
+                'value' => $domain,
+                'encrypted' => 0
+            ),
+            array(
+                'key' => "enverido_email",
+                'value' => $vars['enverido_email'],
+                'encrypted' => 0
+            ),
+            array(
+                'key' => "enverido_shortcode",
+                'value' => $service_fields->enverido_shortcode,
+                'encrypted' => 0
+            )
+        );
 	}
 	
 	/**
@@ -271,30 +287,14 @@ class Enverido extends Module {
 	 * @see Module::getModuleRow()
 	 */
 	public function cancelService($package, $service, $parent_package=null, $parent_service=null) {
-		$response = null;
 
-		if (($module_row = $this->getModuleRow())) {
-            $module_row = $this->getModuleRow();
-            $api = $this->getApi($module_row->meta->email, $module_row->meta->key, ($module_row->meta->test_mode == "true"));
+        if (($row = $this->getModuleRow())) {
+            $service_fields = $this->serviceFieldsToObject($service->fields);
 
-			// Get the service fields
-			$service_fields = $this->serviceFieldsToObject($service->fields);
-            $params = array(
-                'currentip' => (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : ""),
-                'cancel' => (isset($service_fields->buycpanel_license) ? $service_fields->buycpanel_license : "")
-            );
-            
-            try {
-                $command = new BuycpanelAll($api);
-                $response = $command->cancelIp($params);
-                $this->processResponse($api, $response);
-            }
-            catch (Exception $e) {
-                // Internal Error
-				$this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
-            }
-		}
-		
+            $api = $this->getApi($row->meta->organisation, $row->meta->key);
+            $api->suspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+        }
+
 		return null;
 	}
 
@@ -374,7 +374,52 @@ class Enverido extends Module {
 	 * @see Module::getModuleRow()
 	 */
 	public function renewService($package, $service, $parent_package=null, $parent_service=null) {
-		// Nothing to do
+
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+        $module_row = $this->getModuleRow($package->module_row);
+        $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
+
+        // Generate an expiry date
+        // Get term (eg: 1, 2, 5, 10) This will be attached to the period (days, months, years, etc)
+
+        // Blesta passes all pricing terms data so we need to work out which one the user picked
+        $term = null; // eg 15
+        $period = null; // eg days
+
+        foreach($package->pricing as $pricing) {
+            // If the user picked this pricing option then set our term and period variables
+            if($pricing->id == $service->pricing_id) {
+                $term = $pricing->term;
+                $period = $pricing->period;
+            }
+        }
+
+        $today = new DateTime();
+        echo($period);
+
+        // Here we add the expected amount of time between today and the licence expiration
+        switch($period) {
+            case 'onetime':
+                // Expiration date 100 years in the future
+                $today->add(new DateInterval('P100Y'));
+                break;
+            case 'year':
+                $today->add(new DateInterval('P'.$term.'Y'));
+                break;
+            case 'month':
+                $today->add(new DateInterval('P'.$term.'M'));
+                break;
+            case 'week':
+                $today->add(new DateInterval('P'.$term.'W'));
+                break;
+            case 'day':
+                $today->add(new DateInterval('P'.$term.'D'));
+                break;
+        }
+
+        $api->renew_licence($package->meta->product, $service_fields->enverido_licence_id,$today->getTimestamp());
+
 		return null;
 	}
 	
@@ -766,22 +811,37 @@ class Enverido extends Module {
 
 		$fields = new ModuleFields();
 
-        $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "buycpanel_domain");
-		$domain->attach($fields->fieldText("buycpanel_domain", $this->Html->ifSet($vars->buycpanel_domain), array('id'=>"buycpanel_domain")));
-        // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain_edit", true));
-		$domain->attach($tooltip);
-		$fields->setField($domain);
+        $product = $this->getProductInformationFromPackage($package);
 
-        // Set the IP address as selectable options
-		$ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "buycpanel_ipaddress");
-		$ip->attach($fields->fieldText("buycpanel_ipaddress", $this->Html->ifSet($vars->buycpanel_ipaddress), array('id'=>"buycpanel_ipaddress")));
+        // Licensee Email Address
+        $email = $fields->label(Language::_("Enverido.service_fields.email", true), "enverido_email");
+        $email->attach($fields->fieldText("enverido_email", $this->Html->ifSet($vars->enverido_email, $this->Html->ifSet($vars->email)), array('id'=>"enverido_email")));
         // Add tooltip
-		$tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
-		$ip->attach($tooltip);
-		$fields->setField($ip);
+        $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.email", true));
+        $email->attach($tooltip);
+        $fields->setField($email);
 
-		return $fields;
+        if($product->lock_domain_name) {
+            // Domain name
+            $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
+            $domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id'=>"enverido_domain")));
+            // Add tooltip
+            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
+            $domain->attach($tooltip);
+            $fields->setField($domain);
+        }
+
+        if($product->lock_ip) {
+            // Set the IP address as selectable options
+            $ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
+            $ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id'=>"enverido_ip")));
+            // Add tooltip
+            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
+            $ip->attach($tooltip);
+            $fields->setField($ip);
+        }
+
+        return $fields;
 	}
 	
 	/**
@@ -924,32 +984,6 @@ class Enverido extends Module {
             $license_types[$license] = Language::_("Enverido.license_types." . $license, true);
 
         return $license_types;
-    }
-
-    /**
-     * Changes the IP address to a new IP address
-     *
-     * @param BuycpanelApi An stdClass object representing the API
-     * @param string $current_ip The current service IP address
-     * @param string $new_ip The IP address to set for the service
-     */
-    private function changeIp($api, $current_ip, $new_ip) {
-        // Only change IP address
-        $params = array(
-            'currentip' => $current_ip,
-            'newip' => $new_ip
-        );
-
-        try {
-            // Change the IP address
-            $command = new BuycpanelAll($api);
-            $response = $command->changeIp($params);
-            $this->processResponse($api, $response);
-        }
-        catch (Exception $e) {
-            // Internal Error
-            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
-        }
     }
 
     /**

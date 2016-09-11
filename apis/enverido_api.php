@@ -104,5 +104,36 @@ class EnveridoApi {
         $response = $this->httpClient->request('PATCH', '/product/'.$product.'/licence/'.$licence.'/unsuspend');
         return json_decode($response->getBody());
     }
+
+    public function renew_licence($product, $licence, $expiry) {
+        $response = $this->httpClient->request('PATCH', '/product/'.$product.'/licence/'.$licence.'/renew', [
+            'form_params' => [
+                'expiry' => $expiry
+            ]
+        ]);
+
+        return json_decode($response->getBody());
+    }
+
+    public function editLicence($ip, $domain, $email, $product, $licence) {
+
+        $params = array(
+            'email' => $email
+        );
+
+        if($ip != null) {
+            $params['ip'] = $ip;
+        }
+
+        if($domain != null) {
+            $params['domain'] = $domain;
+        }
+
+        $response = $this->httpClient->request('PATCH', '/product/'.$product.'/licence/'.$licence, [
+            'form_params' => $params
+        ]);
+
+        return json_decode($response->getBody());
+    }
 }
 ?>
