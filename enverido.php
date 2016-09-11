@@ -346,25 +346,16 @@ class Enverido extends Module {
 	 * @see Module::getModuleRow()
 	 */
 	public function unsuspendService($package, $service, $parent_package=null, $parent_service=null) {
-		// Get the service fields
-		$service_fields = $this->serviceFieldsToObject($service->fields);
+        // Get module row and API
+        $module_row = $this->getModuleRow();
+        $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
 
-        // Re-add the service since suspending the service cancelled it
-        $license = (isset($service_fields->buycpanel_license) ? $service_fields->buycpanel_license : "");
-        $vars = array(
-            'use_module' => "true",
-            'buycpanel_domain' => (isset($service_fields->buycpanel_domain) ? $service_fields->buycpanel_domain : ""),
-            'buycpanel_ipaddress' => (isset($service_fields->buycpanel_ipaddress) ? $service_fields->buycpanel_ipaddress : ""),
-            'ordertype' => (is_numeric($license) ? $license : "25"), // set license number, or 25 for an addon license
-            'license_type' => $license
-        );
-        
-        // Add the service back with the same values
-        $fields = $this->addService($package, $vars, $parent_package, $parent_service, $status="active", array('allow_order_type' => true));
-        
-        if (!empty($fields))
-            return $fields;
-		return null;
+        // Convert to stdClass
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+        $api->unsuspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+
+        return null;
 	}
 	
 	/**

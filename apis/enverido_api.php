@@ -99,5 +99,10 @@ class EnveridoApi {
         $response = $this->httpClient->request('PATCH', '/product/'.$product.'/licence/'.$licence.'/suspend');
         return json_decode($response->getBody());
     }
+
+    public function unsuspendLicence($product, $licence) {
+        $response = $this->httpClient->request('PATCH', '/product/'.$product.'/licence/'.$licence.'/unsuspend');
+        return json_decode($response->getBody());
+    }
 }
 ?>
