@@ -100,7 +100,6 @@ class Enverido extends Module {
 	 */
 	public function addService($package, array $vars=null, $parent_package=null, $parent_service=null, $status="pending", $options = array()) {
 		// Get module row and API
-
 		$module_row = $this->getModuleRow();
 		$api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
         
@@ -171,6 +170,11 @@ class Enverido extends Module {
         
 		// Return service fields
 		return array(
+            array(
+                'key' => 'enverido_licence_id',
+                'value' => $licence->id,
+                'encrypted' => 0
+            ),
 			array(
 				'key' => "enverido_ip",
 				'value' => $params['ip'],
@@ -311,8 +315,20 @@ class Enverido extends Module {
 	 */
 	public function suspendService($package, $service, $parent_package=null, $parent_service=null) {
 		// Suspend the service by cancelling it
-		$this->cancelService($package, $service, $parent_package, $parent_service);
-	}
+		//$this->cancelService($package, $service, $parent_package, $parent_service);
+
+        // Suspend the licence
+
+        // Get module row and API
+        $module_row = $this->getModuleRow();
+        $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
+
+        $service_fields = $this->serviceFieldsToObject($service->fields);
+
+        $api->suspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+
+        return null;
+    }
 	
 	/**
 	 * Unsuspends the service on the remote server. Sets Input errors on failure,
