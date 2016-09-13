@@ -34,7 +34,7 @@ class EnveridoApi {
         $this->organisation = $organisation;
 
         $this->httpClient = new Client([
-            'base_uri' => 'http://'.$organisation.'.enverido.com',
+            'base_uri' => 'https://'.$organisation.'.enverido.com',
             'headers' => [
                 'X-API-KEY' => $key
             ]

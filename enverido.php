@@ -166,6 +166,7 @@ class Enverido extends Module {
             // Set a dummy short-code value so that provision won't fail
             $licence = new stdClass();
             $licence->short_code="N/A";
+            $licence->id = "-1";
         }
         
 		// Return service fields
@@ -396,7 +397,6 @@ class Enverido extends Module {
         }
 
         $today = new DateTime();
-        echo($period);
 
         // Here we add the expected amount of time between today and the licence expiration
         switch($period) {
@@ -420,7 +420,37 @@ class Enverido extends Module {
 
         $api->renew_licence($package->meta->product, $service_fields->enverido_licence_id,$today->getTimestamp());
 
-		return null;
+        // Array
+        $toReturn = array(
+            array(
+                'key' => 'enverido_email',
+                'value' => $service_fields->enverido_email,
+                'encrypted' => 0
+            ),
+            array(
+                'key' => 'enverido_licence_id',
+                'value' => $service_fields->enverido_licence_id,
+                'encrypted' => 0
+            )
+        );
+
+        if(property_exists($service_fields, 'enverido_domain')) {
+            $toReturn[] = array(
+                'key' => 'enverido_domain',
+                'value' => $service_fields->enverido_domain,
+                'encrypted' => 0
+            );
+        }
+
+        if(property_exists($service_fields, 'enverido_ip')) {
+            $toReturn[] = array(
+                'key' => 'enverido_ip',
+                'value' => $service_fields->enverido_ip,
+                'encrypted' => 0
+            );
+        }
+        
+		return $toReturn;
 	}
 	
 	/**
@@ -508,6 +538,10 @@ class Enverido extends Module {
 		// Nothing to do
 		return null;
 	}
+
+    public function deleteModuleRow($module_row) {
+       return null;
+    }
 	
 	/**
 	 * Returns the rendered view of the manage module page
@@ -738,7 +772,7 @@ class Enverido extends Module {
 		return array(
 			'module' => array(),
 			'package' => array(),
-			'service' => array("buycpanel_ipaddress", "buycpanel_domain", "buycpanel_license")
+			'service' => array("enverido_domain", "enverido_ip", "enverido_email", "enverido_shortcode")
 		);
 	}
 	
@@ -867,8 +901,7 @@ class Enverido extends Module {
 		$this->view->set("package", $package);
 		$this->view->set("service", $service);
 		$this->view->set("service_fields", $this->serviceFieldsToObject($service->fields));
-        $this->view->set("licenses", $this->getLicenseTypes());
-		
+
 		return $this->view->fetch();
 	}
 	
@@ -895,8 +928,7 @@ class Enverido extends Module {
 		$this->view->set("package", $package);
 		$this->view->set("service", $service);
 		$this->view->set("service_fields", $this->serviceFieldsToObject($service->fields));
-        $this->view->set("licenses", $this->getLicenseTypes());
-		
+
 		return $this->view->fetch();
 	}
 
@@ -968,27 +1000,6 @@ class Enverido extends Module {
 		$this->view->setDefaultView("components" . DS . "modules" . DS . "enverido" . DS);
 		return $this->view->fetch();
     }
-	
-    /**
-     * Fetches accepted license types
-     *
-     * @return array A list of key/value pairs representing the license type and it's name
-     */
-    public function getLicenseTypes() {
-        $licenses = array(
-            "0", "10", "20", "3", "4", "5", "attracta", "blesta", "clientexec", "cloudlinux", "fantastico",
-            "installatron", "installatronvps", "litespeed", "litespeed_cpu", "litespeedultra",
-            "rvsitebuilder", "rvsitebuildervps", "rvskin", "softaculous", "solusvm", "solusvmslave",
-            "solusvminislave", "solusvmunslave", "solusvmnovirtual", "spamscan", "trendyflash",
-            "trendyflashdedicated", "trendyflashvps", "whmsonic", "whmxtra"
-        );
-
-        $license_types = array();
-        foreach ($licenses as $license)
-            $license_types[$license] = Language::_("Enverido.license_types." . $license, true);
-
-        return $license_types;
-    }
 
     /**
 	 * Returns an array of service fields to set for the service using the given input
@@ -1005,49 +1016,6 @@ class Enverido extends Module {
 		);
 
 		return $fields;
-	}
-
-    /**
-	 * Validates that the given hostname is valid
-	 *
-	 * @param string $host_name The host name to validate
-	 * @return boolean True if the hostname is valid, false otherwise
-	 */
-	public function validateHostName($host_name) {
-		if (strlen($host_name) > 255)
-			return false;
-
-		return $this->Input->matches($host_name, "/^([a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])(\.([a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9]))+$/");
-	}
-
-    /**
-	 * Process API response, setting any errors, and logging the request
-	 *
-	 * @param BuycpanelApi $api The Enverido API object
-	 * @param BuycpanelResponse $response The Enverido API response object
-	 */
-	private function processResponse(BuycpanelApi $api, BuycpanelResponse $response) {
-		$this->logRequest($api, $response);
-
-		// Set errors, if any
-		if ($response->status() != "1") {
-			$errors = $response->errors() ? $response->errors() : array();
-			$this->Input->setErrors(array('errors' => $errors));
-		}
-	}
-
-	/**
-	 * Logs the API request
-	 *
-	 * @param BuycpanelApi $api The Enverido API object
-	 * @param BuycpanelResponse $response The Enverido API response object
-	 */
-	private function logRequest(BuycpanelApi $api, BuycpanelResponse $response) {
-		$last_request = $api->lastRequest();
-		$last_request['args']['key'] = "***";
-		
-		$this->log($last_request['url'], serialize($last_request['args']), "input", true);
-		$this->log($last_request['url'], $response->raw(), "output", $response->status() == "1");
 	}
 
     /**
