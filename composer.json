@@ -1,8 +1,9 @@
 {
-    "name": "blesta/buycpanel",
-    "description": "BuycPanel",
-    "license": "proprietary",
+    "name": "enverido/blesta",
+    "description": "Official Blesta module for Enverido",
+    "license": "MIT",
     "type": "blesta-module",
+    "licence": "MIT",
     "require": {
         "blesta/composer-installer": "~1.0",
         "guzzlehttp/guzzle": "^6.2",
