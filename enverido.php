@@ -293,7 +293,7 @@ class Enverido extends Module {
             $service_fields = $this->serviceFieldsToObject($service->fields);
 
             $api = $this->getApi($row->meta->organisation, $row->meta->key);
-            $api->suspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+            $api->delete_licence($package->meta->product, $service_fields->enverido_licence_id);
         }
 
 		return null;

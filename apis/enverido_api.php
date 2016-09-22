@@ -140,5 +140,16 @@ class EnveridoApi {
 
         return json_decode($response->getBody());
     }
+
+    public function delete_licence($product, $licence) {
+        $request = $this->httpClient->delete('/product/'.$product.'/licence/'.$licence);
+        $response = json_decode($request->getBody());
+
+        if(property_exists($response, 'deleted')) {
+            return $response->deleted;
+        } else {
+            return false;
+        }
+    }
 }
 ?>
