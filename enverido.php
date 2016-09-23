@@ -11,6 +11,20 @@ require_once 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
  * @link http://www.enverido.com/ Enverido
  */
 class Enverido extends Module {
+
+    /**
+     * Pass a log entry to Blesta's module log
+     *
+     * @param string $url The URL contacted for this request
+     * @param string $data A string of module data sent along with the request (optional)
+     * @param string $direction The direction of the log entry (input or output, default input)
+     * @param boolean $success True if the request was successful, false otherwise
+     * @return string Returns the 8-character group identifier, used to link log entries together
+     */
+
+    public function passLogEntry($url, $data, $direction="input", $success) {
+        return $this->log($url, $data, $direction, $success);
+    }
 	
 	/**
 	 * Initializes the module
@@ -36,6 +50,11 @@ class Enverido extends Module {
 	public function validateService($package, array $vars=null) {
         // Get information about the product from the Enverido API
         $productInfo = $this->getProductInformationFromPackage($package);
+
+        if($productInfo == null) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+            return;
+        }
 
         $rules = array(
             'enverido_email' => array(
@@ -151,8 +170,12 @@ class Enverido extends Module {
         // Only provision the service if 'use_module' is true
 		if ($vars['use_module'] == "true") {
 
-            $licence = $api->generateLicence($package->meta->product, $package->meta->authority, $params['email'], $params['ip'], $params['domain'], $today->getTimestamp());
-            if(!isset($licence->short_code)) {
+		    try {
+                $licence = $api->generateLicence($package->meta->product, $package->meta->authority, $params['email'], $params['ip'], $params['domain'], $today->getTimestamp());
+                if (!isset($licence->short_code)) {
+                    $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+                }
+            } catch(\GuzzleHttp\Exception\ClientException $ex) {
                 $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
             }
             
@@ -236,8 +259,11 @@ class Enverido extends Module {
 		    $ip = isset($vars['enverido_ip']) ? $vars['enverido_ip'] : null;
             $domain = isset($vars['enverido_domain']) ? $vars['enverido_domain']: null;
 
-		    $r = $api->editLicence($ip, $domain, $vars['enverido_email'], $package->meta->product, $service_fields->enverido_licence_id);
-            
+            try {
+                $r = $api->editLicence($ip, $domain, $vars['enverido_email'], $package->meta->product, $service_fields->enverido_licence_id);
+            } catch(\GuzzleHttp\Exception\ClientException $ex) {
+                $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+            }
             if ($this->Input->errors())
 				return;
         }
@@ -293,7 +319,16 @@ class Enverido extends Module {
             $service_fields = $this->serviceFieldsToObject($service->fields);
 
             $api = $this->getApi($row->meta->organisation, $row->meta->key);
-            $api->delete_licence($package->meta->product, $service_fields->enverido_licence_id);
+
+            try {
+                $api->delete_licence($package->meta->product, $service_fields->enverido_licence_id);
+            } catch(\GuzzleHttp\Exception\ClientException $ex) {
+                $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+            }
+
+            if ($this->Input->errors())
+                return;
+
         }
 
 		return null;
@@ -326,7 +361,14 @@ class Enverido extends Module {
 
         $service_fields = $this->serviceFieldsToObject($service->fields);
 
-        $api->suspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+        try {
+            $api->suspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+        } catch(\GuzzleHttp\Exception\ClientException $ex) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+        }
+
+        if ($this->Input->errors())
+            return;
 
         return null;
     }
@@ -354,7 +396,14 @@ class Enverido extends Module {
         // Convert to stdClass
         $service_fields = $this->serviceFieldsToObject($service->fields);
 
-        $api->unsuspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+        try {
+            $api->unsuspendLicence($package->meta->product, $service_fields->enverido_licence_id);
+        } catch(\GuzzleHttp\Exception\ClientException $ex) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+        }
+
+        if ($this->Input->errors())
+            return;
 
         return null;
 	}
@@ -418,7 +467,14 @@ class Enverido extends Module {
                 break;
         }
 
-        $api->renew_licence($package->meta->product, $service_fields->enverido_licence_id,$today->getTimestamp());
+        try {
+            $api->renew_licence($package->meta->product, $service_fields->enverido_licence_id, $today->getTimestamp());
+        } catch(\GuzzleHttp\Exception\ClientException $ex) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+        }
+
+        if ($this->Input->errors())
+            return;
 
         // Array
         $toReturn = array(
@@ -715,15 +771,29 @@ class Enverido extends Module {
 
         // Get a list of products from the API and store the ID and name in an array for insertion into a select element
         $productsWithIds = array();
-        foreach($api->getProducts() as $p) {
-            $productsWithIds[$p->id] = $p->name;
+        try {
+            foreach ($api->getProducts() as $p) {
+                $productsWithIds[$p->id] = $p->name;
+            }
+        } catch(\GuzzleHttp\Exception\ClientException $ex) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
         }
+
+        if ($this->Input->errors())
+            return;
 
         // Get a list of issuing authorities from the API and store the ID and name in an array for insertion into a select element
         $authoritiesWithIds = array();
-        foreach($api->getIssuingAuthorities() as $a) {
-            $authoritiesWithIds[$a->id] = $a->name;
+        try {
+            foreach ($api->getIssuingAuthorities() as $a) {
+                $authoritiesWithIds[$a->id] = $a->name;
+            }
+        } catch(\GuzzleHttp\Exception\ClientException $ex) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
         }
+
+        if ($this->Input->errors())
+            return;
 
         // Set the package's available options
 		$product = $fields->label(Language::_("Enverido.package_fields.product", true), "product");
@@ -752,7 +822,15 @@ class Enverido extends Module {
         $module_row = $this->getModuleRow($package->module_row);
 
         $api = $this->getApi($module_row->meta->organisation, $module_row->meta->key);
-        return $api->getProduct($package->meta->product);
+
+        try {
+            return $api->getProduct($package->meta->product);
+        } catch(\GuzzleHttp\Exception\ClientException $ex) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+        }
+
+        if ($this->Input->errors())
+            return;
     }
 	
 	/**
@@ -789,33 +867,37 @@ class Enverido extends Module {
 		$fields = new ModuleFields();
 
         $product = $this->getProductInformationFromPackage($package);
+        if($product == null) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+        } else {
 
-        // Licensee Email Address
-        $email = $fields->label(Language::_("Enverido.service_fields.email", true), "enverido_email");
-        $email->attach($fields->fieldText("enverido_email", $this->Html->ifSet($vars->enverido_email, $this->Html->ifSet($vars->email)), array('id'=>"enverido_email")));
-        // Add tooltip
-        $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.email", true));
-        $email->attach($tooltip);
-        $fields->setField($email);
-
-        if($product->lock_domain_name) {
-            // Domain name
-            $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
-            $domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id'=>"enverido_domain")));
+            // Licensee Email Address
+            $email = $fields->label(Language::_("Enverido.service_fields.email", true), "enverido_email");
+            $email->attach($fields->fieldText("enverido_email", $this->Html->ifSet($vars->enverido_email, $this->Html->ifSet($vars->email)), array('id' => "enverido_email")));
             // Add tooltip
-            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
-            $domain->attach($tooltip);
-            $fields->setField($domain);
-        }
+            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.email", true));
+            $email->attach($tooltip);
+            $fields->setField($email);
 
-        if($product->lock_ip) {
-            // Set the IP address as selectable options
-            $ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
-            $ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id'=>"enverido_ip")));
-            // Add tooltip
-            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
-            $ip->attach($tooltip);
-            $fields->setField($ip);
+            if ($product->lock_domain_name) {
+                // Domain name
+                $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
+                $domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id' => "enverido_domain")));
+                // Add tooltip
+                $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
+                $domain->attach($tooltip);
+                $fields->setField($domain);
+            }
+
+            if ($product->lock_ip) {
+                // Set the IP address as selectable options
+                $ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
+                $ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id' => "enverido_ip")));
+                // Add tooltip
+                $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
+                $ip->attach($tooltip);
+                $fields->setField($ip);
+            }
         }
 		
 		return $fields;
@@ -847,32 +929,37 @@ class Enverido extends Module {
 
         $product = $this->getProductInformationFromPackage($package);
 
-        // Licensee Email Address
-        $email = $fields->label(Language::_("Enverido.service_fields.email", true), "enverido_email");
-        $email->attach($fields->fieldText("enverido_email", $this->Html->ifSet($vars->enverido_email, $this->Html->ifSet($vars->email)), array('id'=>"enverido_email")));
-        // Add tooltip
-        $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.email", true));
-        $email->attach($tooltip);
-        $fields->setField($email);
+        if($product == null) {
+            $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+        } else {
 
-        if($product->lock_domain_name) {
-            // Domain name
-            $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
-            $domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id'=>"enverido_domain")));
+            // Licensee Email Address
+            $email = $fields->label(Language::_("Enverido.service_fields.email", true), "enverido_email");
+            $email->attach($fields->fieldText("enverido_email", $this->Html->ifSet($vars->enverido_email, $this->Html->ifSet($vars->email)), array('id' => "enverido_email")));
             // Add tooltip
-            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
-            $domain->attach($tooltip);
-            $fields->setField($domain);
-        }
+            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.email", true));
+            $email->attach($tooltip);
+            $fields->setField($email);
 
-        if($product->lock_ip) {
-            // Set the IP address as selectable options
-            $ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
-            $ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id'=>"enverido_ip")));
-            // Add tooltip
-            $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
-            $ip->attach($tooltip);
-            $fields->setField($ip);
+            if ($product->lock_domain_name) {
+                // Domain name
+                $domain = $fields->label(Language::_("Enverido.service_fields.domain", true), "enverido_domain");
+                $domain->attach($fields->fieldText("enverido_domain", $this->Html->ifSet($vars->enverido_domain, $this->Html->ifSet($vars->domain)), array('id' => "enverido_domain")));
+                // Add tooltip
+                $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.domain", true));
+                $domain->attach($tooltip);
+                $fields->setField($domain);
+            }
+
+            if ($product->lock_ip) {
+                // Set the IP address as selectable options
+                $ip = $fields->label(Language::_("Enverido.service_fields.ipaddress", true), "enverido_ip");
+                $ip->attach($fields->fieldText("enverido_ip", $this->Html->ifSet($vars->enverido_ip), array('id' => "enverido_ip")));
+                // Add tooltip
+                $tooltip = $fields->tooltip(Language::_("Enverido.service_field.tooltip.ipaddress", true));
+                $ip->attach($tooltip);
+                $fields->setField($ip);
+            }
         }
 
         return $fields;
@@ -981,8 +1068,15 @@ class Enverido extends Module {
                 'enverido_ip' => (isset($post['enverido_ip']) ? $post['enverido_ip'] : null),
             );
 
-            $api->reissue_licence($package->meta->product, $service_fields->enverido_licence_id);
-            $api->editLicence($vars['enverido_ip'], $vars['enverido_domain'], $vars['enverido_email'], $package->meta->product, $service_fields->enverido_licence_id);
+            try {
+                $api->reissue_licence($package->meta->product, $service_fields->enverido_licence_id);
+                $api->editLicence($vars['enverido_ip'], $vars['enverido_domain'], $vars['enverido_email'], $package->meta->product, $service_fields->enverido_licence_id);
+            } catch(\GuzzleHttp\Exception\ClientException $ex) {
+                $this->Input->setErrors(array('api' => array('internal' => Language::_("Enverido.!error.api.internal", true))));
+            }
+
+            if ($this->Input->errors())
+                return;
 
             // Update the service IP address
             Loader::loadModels($this, array("Services"));
@@ -1028,7 +1122,7 @@ class Enverido extends Module {
 	private function getApi($organisation, $key) {
 		Loader::load(dirname(__FILE__) . DS . "apis" . DS . "enverido_api.php");
 
-		return new \Apis\EnveridoApi($organisation, $key);
+		return new \Apis\EnveridoApi($organisation, $key, $this);
 	}
 
 	/**
